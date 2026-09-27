@@ -1,0 +1,1668 @@
+<title>Milky Melky Motion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DynaPuff:wght@600;700&family=Mochiy+Pop+One&family=Unbounded:wght@300&family=Zen+Maru+Gothic:wght@700;900&display=swap">
+<style>
+  :root {
+    --page: #eaf0fb;
+    --ink: #16205c;
+    --muted: #5d6897;
+    --line: rgba(22, 32, 92, 0.16);
+    --royal: #2446d8;
+    --pink: #ff5c9a;
+    --milk: #fff8f0;
+  }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body {
+    background:
+      radial-gradient(1200px 600px at 12% -10%, #fbe3ef 0%, transparent 60%),
+      radial-gradient(1000px 700px at 110% 110%, #d6ebff 0%, transparent 60%),
+      var(--page);
+    color: var(--ink);
+    font-family: "DM Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding-inline: 16px;
+    padding-block: 16px;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  .frame {
+    position: relative;
+    width: min(100%, calc((100vh - 96px) * 16 / 9));
+    aspect-ratio: 16 / 9;
+    max-width: 100%;
+    background: var(--milk);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 30px 70px rgba(36, 70, 216, 0.18), 0 6px 18px rgba(22, 32, 92, 0.1);
+  }
+  .frame:fullscreen { border-radius: 0; width: 100%; height: 100%; aspect-ratio: auto; background: #000; }
+  canvas { display: block; width: 100%; height: 100%; object-fit: contain; }
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: min(100%, 560px);
+    font-size: 12px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  button {
+    appearance: none;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.6);
+    color: var(--ink);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    flex: none;
+  }
+  button:hover { border-color: rgba(22, 32, 92, 0.4); background: #fff; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--royal); outline-offset: 2px; }
+  button svg { width: 14px; height: 14px; fill: currentColor; }
+  input[type="range"] {
+    flex: 1;
+    min-width: 0;
+    accent-color: var(--pink);
+    height: 18px;
+    background: transparent;
+  }
+  .sound-hint {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: auto;
+    height: auto;
+    border-radius: 999px;
+    padding: 14px 26px 14px 20px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    font: 500 14px/1 "DM Mono", ui-monospace, monospace;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+    color: var(--ink);
+    background: rgba(255, 248, 240, 0.9);
+    border: 2px solid var(--royal);
+    box-shadow: 0 6px 0 var(--pink), 0 18px 40px rgba(36, 70, 216, 0.25);
+    transition: transform 0.15s;
+  }
+  .sound-hint:hover { background: #fff; transform: translate(-50%, calc(-50% - 2px)); }
+  .sound-hint svg { width: 16px; height: 16px; }
+  .time { width: 9.5ch; text-align: right; letter-spacing: 0.04em; }
+  .time b { color: var(--ink); font-weight: 500; }
+  @media (max-width: 480px) {
+    .sound-hint { padding: 10px 18px 10px 14px; font-size: 12px; }
+  }
+</style>
+
+<div class="frame" id="frame">
+  <canvas id="stage" role="img" aria-label="Ameluna「Milky Melky（ミルキーメルキー）」30秒モーショングラフィック。3rd Album POLARIS DROP 収録。歌詞：ひとりの時も 浮かぶ顔／理由もなくて 笑っちゃう／静かに満ちてく この気持ち／大事に包んで／ミルキーメルキー 溶けてゆくように／甘い想いが 広がってく／ミルキーメルキー 優しい時間が／胸の奥で 光ってる"></canvas>
+  <button id="sound-hint" class="sound-hint" type="button" hidden>
+    <svg viewBox="0 0 14 14"><path d="M1 5h2.6L7 2v10L3.6 9H1zM9.2 4.4a3.6 3.6 0 0 1 0 5.2l-.9-.9a2.3 2.3 0 0 0 0-3.4zM11 2.6a6.2 6.2 0 0 1 0 8.8l-.9-.9a4.9 4.9 0 0 0 0-7z"/></svg>
+    音ありで再生
+  </button>
+</div>
+<div class="controls">
+  <button id="play" type="button" aria-label="一時停止">
+    <svg id="icon-pause" viewBox="0 0 14 14"><rect x="2" y="1" width="3.5" height="12" rx="1"/><rect x="8.5" y="1" width="3.5" height="12" rx="1"/></svg>
+    <svg id="icon-play" viewBox="0 0 14 14" hidden><path d="M3 1.2v11.6c0 .6.7 1 1.2.6l8.4-5.8c.4-.3.4-.9 0-1.2L4.2.6C3.7.2 3 .6 3 1.2z"/></svg>
+  </button>
+  <input id="seek" type="range" min="0" max="30" step="0.01" value="0" aria-label="再生位置">
+  <span class="time"><b id="now">00.0</b> / 30.0</span>
+  <button id="sound" type="button" aria-label="音声をオンにする" hidden>
+    <svg id="icon-muted" viewBox="0 0 14 14"><path d="M1 5h2.6L7 2v10L3.6 9H1zM9 5.1l.9-.9L11.2 5.5l1.3-1.3.9.9-1.3 1.3 1.3 1.3-.9.9-1.3-1.3-1.3 1.3-.9-.9 1.3-1.3z"/></svg>
+    <svg id="icon-sound" viewBox="0 0 14 14" hidden><path d="M1 5h2.6L7 2v10L3.6 9H1zM9.2 4.4a3.6 3.6 0 0 1 0 5.2l-.9-.9a2.3 2.3 0 0 0 0-3.4zM11 2.6a6.2 6.2 0 0 1 0 8.8l-.9-.9a4.9 4.9 0 0 0 0-7z"/></svg>
+  </button>
+  <button id="fs" type="button" aria-label="全画面表示">
+    <svg viewBox="0 0 14 14"><path d="M1 5V1h4v1.6H2.6V5zM9 1h4v4h-1.6V2.6H9zM13 9v4H9v-1.6h2.4V9zM5 13H1V9h1.6v2.4H5z"/></svg>
+  </button>
+</div>
+
+<img id="illust" alt="" hidden src="__ILLUST__">
+<script type="text/plain" id="clip">__CLIP__</script>
+
+<script>
+(() => {
+  // ============================================================
+  //  Ameluna — Milky Melky (ミルキーメルキー) / 3rd Album POLARIS DROP, Track 03
+  //  30 s, 1920x1080. 128 BPM: the clip opens on the pre-chorus downbeat and
+  //  the first chorus hits at exactly t = 15.0 s.
+  // ============================================================
+  const W = 1920, H = 1080, DUR = 30;
+  const BEAT = 60 / 128, BAR = BEAT * 4, DROP = 15;
+
+  const C = {
+    milk: "#fff8f0", cream: "#ffeedd",
+    sky: "#a9dcff", skyPale: "#dcf1ff", dot: "#d3eaff",
+    royal: "#2446d8", navy: "#16205c", deep: "#101a55",
+    pink: "#ff7eb3", berry: "#ff4f7e", ribbon: "#ee4b97", ribbonHi: "#ff9ccb",
+    gold: "#ffd46b", leaf: "#5dbb6a", latte: "#c99f78"
+  };
+  const F = {
+    puff: '"DynaPuff", "Arial Rounded MT Bold", "Hiragino Maru Gothic ProN", sans-serif',
+    pop: '"Mochiy Pop One", "Hiragino Maru Gothic ProN", "Zen Maru Gothic", sans-serif',
+    maru: '"Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Yu Gothic", sans-serif',
+    mono: '"DM Mono", ui-monospace, "SFMono-Regular", Menlo, monospace',
+    wide: '"Unbounded", "Futura", "Helvetica Neue", sans-serif'
+  };
+
+  // points of interest in the illustration (source pixels, 1672x941)
+  const P = {
+    face: [720, 340], eyeL: [628, 351], eyeR: [772, 296],
+    cheekL: [590, 404], cheekR: [852, 352],
+    chest: [790, 585], latte: [1115, 690], center: [836, 470]
+  };
+
+  const canvas = document.getElementById("stage");
+  const ctx = canvas.getContext("2d");
+  const illust = document.getElementById("illust");
+  let IW = 1672, IH = 941;
+
+  // ---------- helpers ----------
+  const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const seg = (t, a, b) => clamp((t - a) / (b - a));
+  const easeOut = t => 1 - Math.pow(1 - t, 3);
+  const easeIn = t => t * t * t;
+  const easeInOut = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  const sine = t => 0.5 - 0.5 * Math.cos(Math.PI * t);
+  const easeOutBack = (t, k = 1.9) => t <= 0 ? 0 : t >= 1 ? 1 : 1 + (k + 1) * Math.pow(t - 1, 3) + k * Math.pow(t - 1, 2);
+  const easeInBack = (t, k = 1.7) => (k + 1) * t * t * t - k * t * t;
+  function bounceOut(x) {
+    const n = 7.5625, d = 2.75;
+    if (x < 1 / d) return n * x * x;
+    if (x < 2 / d) return n * (x -= 1.5 / d) * x + 0.75;
+    if (x < 2.5 / d) return n * (x -= 2.25 / d) * x + 0.9375;
+    return n * (x -= 2.625 / d) * x + 0.984375;
+  }
+  const window_ = (t, a, b, c, d) => Math.min(seg(t, a, b), 1 - seg(t, c, d));
+  const TAU = Math.PI * 2;
+  function rng(seed) {
+    return () => {
+      seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+      let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function makeCanvas(w, h) {
+    const c = document.createElement("canvas");
+    c.width = w; c.height = h;
+    return c;
+  }
+  function rr(c, x, y, w, h, r) {
+    r = Math.max(0, Math.min(r, w / 2, h / 2));
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
+  function heartPath(c, x, y, s) {
+    c.moveTo(x, y - 0.25 * s);
+    c.bezierCurveTo(x - 0.1 * s, y - 0.47 * s, x - 0.5 * s, y - 0.45 * s, x - 0.5 * s, y - 0.12 * s);
+    c.bezierCurveTo(x - 0.5 * s, y + 0.15 * s, x - 0.2 * s, y + 0.3 * s, x, y + 0.5 * s);
+    c.bezierCurveTo(x + 0.2 * s, y + 0.3 * s, x + 0.5 * s, y + 0.15 * s, x + 0.5 * s, y - 0.12 * s);
+    c.bezierCurveTo(x + 0.5 * s, y - 0.45 * s, x + 0.1 * s, y - 0.47 * s, x, y - 0.25 * s);
+    c.closePath();
+  }
+  // four-point twinkle, like the highlights in her eyes
+  function sparklePath(c, x, y, r, thin = 0.16) {
+    const k = r * thin;
+    c.moveTo(x, y - r);
+    c.quadraticCurveTo(x + k, y - k, x + r, y);
+    c.quadraticCurveTo(x + k, y + k, x, y + r);
+    c.quadraticCurveTo(x - k, y + k, x - r, y);
+    c.quadraticCurveTo(x - k, y - k, x, y - r);
+    c.closePath();
+  }
+  // round bottom at (x, y), tip pointing up
+  function dropPath(c, x, y, r, stretch = 1) {
+    const tip = y - r * 2.1 * stretch;
+    c.moveTo(x, tip);
+    c.bezierCurveTo(x + r * 0.3, y - r * 1.25 * stretch, x + r, y - r * 0.75, x + r, y);
+    c.arc(x, y, r, 0, Math.PI);
+    c.bezierCurveTo(x - r, y - r * 0.75, x - r * 0.3, y - r * 1.25 * stretch, x, tip);
+    c.closePath();
+  }
+
+  // beat pulse: 1 on each beat, decaying through it
+  const beatPhase = t => ((t % BEAT) + BEAT) % BEAT;
+  const beatIndex = t => Math.floor(t / BEAT);
+  const pulse = (t, k = 9) => Math.exp(-beatPhase(t) * k);
+  const inChorus = t => t >= DROP && t < 28.0;
+
+  // ---------- sprites ----------
+  function glowSprite(color, size = 128) {
+    const c = makeCanvas(size, size), g = c.getContext("2d");
+    const r = size / 2;
+    const grd = g.createRadialGradient(r, r, 0, r, r, r);
+    grd.addColorStop(0, color);
+    grd.addColorStop(0.3, color + "88");
+    grd.addColorStop(1, color + "00");
+    g.fillStyle = grd;
+    g.fillRect(0, 0, size, size);
+    return c;
+  }
+  const GLOW = {
+    white: glowSprite("#ffffff"),
+    pink: glowSprite("#ff8cc0"),
+    sky: glowSprite("#7cc8ff"),
+    gold: glowSprite("#ffd98a")
+  };
+  function glow(kind, x, y, r, a = 1) {
+    if (a <= 0 || r <= 0) return;
+    ctx.globalAlpha = a;
+    ctx.drawImage(GLOW[kind], x - r, y - r, r * 2, r * 2);
+    ctx.globalAlpha = 1;
+  }
+
+  // die-cut stickers: a white outline around each shape
+  const STICK = {};
+  function buildStickers() {
+    const S = 220, m = S / 2;
+    // crescent moon, like her earring
+    {
+      const crescent = (r, cx, cy, cr, color) => {
+        const c = makeCanvas(S, S), g = c.getContext("2d");
+        g.fillStyle = color;
+        g.beginPath(); g.arc(m, m, r, 0, TAU); g.fill();
+        g.globalCompositeOperation = "destination-out";
+        g.beginPath(); g.arc(cx, cy, cr, 0, TAU); g.fill();
+        return c;
+      };
+      const c = makeCanvas(S, S), g = c.getContext("2d");
+      g.drawImage(crescent(82, m + 34, m - 26, 62, "#ffffff"), 0, 0);
+      g.drawImage(crescent(70, m + 34, m - 26, 72, C.gold), 0, 0);
+      STICK.moon = c;
+    }
+    const outlined = (draw) => {
+      const c = makeCanvas(S, S), g = c.getContext("2d");
+      g.translate(m, m);
+      g.lineJoin = "round";
+      draw(g);
+      return c;
+    };
+    STICK.heart = outlined(g => {
+      g.beginPath(); heartPath(g, 0, 8, 150);
+      g.strokeStyle = "#fff"; g.lineWidth = 22; g.stroke();
+      g.fillStyle = C.pink; g.fill();
+      g.beginPath(); g.ellipse(-30, -22, 14, 9, -0.6, 0, TAU);
+      g.fillStyle = "rgba(255,255,255,0.75)"; g.fill();
+    });
+    STICK.berry = outlined(g => {
+      const body = () => {
+        g.beginPath();
+        g.moveTo(0, -40);
+        g.bezierCurveTo(-78, -52, -66, 30, 0, 78);
+        g.bezierCurveTo(66, 30, 78, -52, 0, -40);
+        g.closePath();
+      };
+      const leaves = () => {
+        g.beginPath();
+        for (let i = 0; i < 5; i++) {
+          const a = -Math.PI / 2 + (i - 2) * 0.55;
+          g.ellipse(Math.cos(a) * 26, -46 + Math.sin(a) * 12 + 10, 26, 11, a, 0, TAU);
+        }
+      };
+      g.strokeStyle = "#fff"; g.lineWidth = 22;
+      body(); g.stroke(); leaves(); g.stroke();
+      body(); g.fillStyle = C.berry; g.fill();
+      g.fillStyle = "#ffe8a6";
+      for (const [x, y] of [[-24, -8], [0, -14], [24, -8], [-30, 18], [-8, 12], [14, 16], [34, 20], [-16, 38], [8, 42], [0, 62]]) {
+        g.beginPath(); g.ellipse(x, y, 3.2, 5, 0, 0, TAU); g.fill();
+      }
+      leaves(); g.fillStyle = C.leaf; g.fill();
+      g.beginPath(); g.ellipse(-26, -6, 9, 18, 0.4, 0, TAU);
+      g.fillStyle = "rgba(255,255,255,0.45)"; g.fill();
+    });
+    STICK.star = outlined(g => {
+      g.beginPath(); sparklePath(g, 0, 0, 90, 0.22);
+      g.strokeStyle = "#fff"; g.lineWidth = 22; g.stroke();
+      g.fillStyle = C.gold; g.fill();
+    });
+    STICK.cloud = outlined(g => {
+      const puffs = () => {
+        g.beginPath();
+        for (const [x, y, r] of [[-50, 14, 38], [-12, -12, 48], [36, 2, 40], [66, 22, 28], [-80, 30, 24], [8, 30, 36]]) {
+          g.moveTo(x + r, y); g.arc(x, y, r, 0, TAU);
+        }
+      };
+      g.strokeStyle = C.sky; g.lineWidth = 18; puffs(); g.stroke();
+      g.fillStyle = "#fff"; puffs(); g.fill();
+      g.beginPath(); heartPath(g, -6, 10, 46); g.fillStyle = C.pink; g.fill();
+    });
+    STICK.badge = outlined(g => {
+      g.beginPath(); g.arc(0, 0, 82, 0, TAU);
+      g.fillStyle = "#fff"; g.fill();
+      g.beginPath(); g.arc(0, 0, 72, 0, TAU);
+      g.fillStyle = C.royal; g.fill();
+      g.fillStyle = "#fff";
+      g.textAlign = "center"; g.textBaseline = "alphabetic";
+      g.font = "500 17px " + F.mono;
+      g.fillText("TRACK", 0, -20);
+      g.font = "700 62px " + F.puff;
+      g.fillText("03", 0, 38);
+    });
+  }
+  function sticker(kind, x, y, size, rot = 0, a = 1) {
+    if (a <= 0 || size <= 0) return;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+    ctx.shadowColor = "rgba(22, 32, 92, 0.22)";
+    ctx.shadowBlur = 14;
+    ctx.shadowOffsetY = 6;
+    ctx.drawImage(STICK[kind], -size / 2, -size / 2, size, size);
+    ctx.restore();
+  }
+
+  // ---------- the illustration, framed by a camera ----------
+  // (fx, fy) in source pixels lands on the anchor; z = 1 is "cover the rect".
+  const FULL = { x: 0, y: 0, w: W, h: H, r: 0 };
+  function art(rect, cam, opt = {}) {
+    const { x, y, w, h } = rect;
+    const ax = opt.ax ?? x + w / 2, ay = opt.ay ?? y + h / 2;
+    const s = Math.max(w / IW, h / IH) * cam.z;
+    const minFx = (ax - x) / s, maxFx = IW - (x + w - ax) / s;
+    const minFy = (ay - y) / s, maxFy = IH - (y + h - ay) / s;
+    const fx = minFx > maxFx ? IW / 2 : clamp(cam.fx, minFx, maxFx);
+    const fy = minFy > maxFy ? IH / 2 : clamp(cam.fy, minFy, maxFy);
+    ctx.save();
+    if (!opt.noClip) {
+      ctx.beginPath();
+      rr(ctx, x, y, w, h, rect.r || 0);
+      ctx.clip();
+    }
+    ctx.translate(ax, ay);
+    ctx.scale(s, s);
+    ctx.drawImage(illust, -fx, -fy);
+    ctx.restore();
+    return { ax, ay, s, fx, fy };
+  }
+  const toScreen = (v, p) => [v.ax + (p[0] - v.fx) * v.s, v.ay + (p[1] - v.fy) * v.s];
+  const mixCam = (a, b, k) => ({ fx: lerp(a.fx, b.fx, k), fy: lerp(a.fy, b.fy, k), z: lerp(a.z, b.z, k) });
+
+  // one continuous camera for the opening circle and the smile close-up
+  const camFace = t => ({
+    fx: 718, fy: lerp(338, 362, seg(t, 0, 7.5)),
+    z: lerp(1.28, 1.62, easeInOut(seg(t, 0.4, 7.5)))
+  });
+  const camLatte = t => {
+    const p = easeInOut(seg(t, 7.6, 10.9));
+    return { fx: lerp(1118, 724, p), fy: lerp(690, 360, p), z: lerp(1.95, 1.42, p) };
+  };
+  const camCard = t => ({ fx: 836, fy: 470, z: lerp(1.0, 1.05, seg(t, 11.7, 14)) });
+  const camDrop = t => ({ fx: 836, fy: 462, z: lerp(1.16, 1.0, easeOut(seg(t, 15, 16.4))) * (1 + 0.012 * pulse(t)) });
+  const camSweet = t => ({ fx: 770, fy: 455, z: lerp(1.62, 1.22, easeInOut(seg(t, 18.4, 22.6))) * (1 + 0.01 * pulse(t)) });
+  const camPola = t => ({ fx: 742, fy: lerp(390, 420, seg(t, 22.3, 26)), z: lerp(1.28, 1.4, seg(t, 22.3, 26)) });
+  const camHeart = t => ({ fx: 786, fy: lerp(470, 520, seg(t, 26, 28.3)), z: lerp(1.5, 1.34, seg(t, 26, 28.3)) * (1 + 0.008 * pulse(t)) });
+
+  // ---------- deterministic particles ----------
+  const R = rng(20260928);
+  // bubbles / sparkles drifting up: periodic in DUR so the loop is seamless
+  const floaters = Array.from({ length: 46 }, (_, i) => ({
+    x: R() * W, y0: R(), n: 1 + Math.floor(R() * 3), sway: 10 + R() * 26, p: R() * TAU,
+    r: 5 + R() * 13, kind: i % 3 === 0 ? "heart" : (i % 3 === 1 ? "bubble" : "spark"),
+    a: 0.35 + R() * 0.45
+  }));
+  // ballistic bursts with linear drag (closed form, so any frame can be drawn directly)
+  function burst(seed, n, speed, kinds) {
+    const r = rng(seed);
+    return Array.from({ length: n }, () => {
+      const a = r() * TAU;
+      const v = speed[0] + r() * (speed[1] - speed[0]);
+      return {
+        vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.8 - 260 * r(),
+        spin: (r() - 0.5) * 10, flip: 4 + r() * 8, rot: r() * TAU,
+        size: 14 + r() * 22, kind: kinds[Math.floor(r() * kinds.length)],
+        color: [C.pink, C.berry, "#ffffff", C.gold, "#7cc8ff", C.ribbonHi][Math.floor(r() * 6)],
+        life: 1.8 + r() * 1.6
+      };
+    });
+  }
+  const splash = burst(7, 16, [260, 620], ["milk"]);
+  const confetti = burst(15, 120, [700, 1900], ["heart", "heart", "spark", "dot", "rect", "berry"]);
+  const stars = Array.from({ length: 70 }, () => ({ x: R() * W, y: R() * H, r: 1 + R() * 2.4, p: R() * TAU, k: 1 + Math.floor(R() * 4) }));
+  const drips = Array.from({ length: 26 }, (_, i) => ({ x: (i + 0.2 + R() * 0.6) / 26 * (W + 80) - 40, w: 34 + R() * 46, len: 60 + R() * 200, p: R() * TAU }));
+
+  function particleAt(pt, x0, y0, dt, g = 1300, k = 2.4) {
+    const e = (1 - Math.exp(-k * dt)) / k;
+    return [x0 + pt.vx * e, y0 + (pt.vy + g / k) * e - g * dt / k];
+  }
+  function drawBit(kind, x, y, s, rot, flip, color, a) {
+    if (a <= 0) return;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+    ctx.scale(flip, 1);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    if (kind === "heart") heartPath(ctx, 0, 0, s);
+    else if (kind === "spark") sparklePath(ctx, 0, 0, s * 0.6, 0.2);
+    else if (kind === "dot") ctx.arc(0, 0, s * 0.28, 0, TAU);
+    else if (kind === "rect") rr(ctx, -s * 0.35, -s * 0.18, s * 0.7, s * 0.36, s * 0.1);
+    if (kind === "berry") {
+      ctx.restore();
+      sticker("berry", x, y, s * 1.9, rot * 0.3, a);
+      return;
+    }
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // ---------- backgrounds ----------
+  function milkBG() {
+    ctx.fillStyle = C.milk;
+    ctx.fillRect(0, 0, W, H);
+    const g = ctx.createRadialGradient(W * 0.85, H * 0.1, 0, W * 0.85, H * 0.1, W * 0.6);
+    g.addColorStop(0, "rgba(214, 236, 255, 0.9)");
+    g.addColorStop(1, "rgba(214, 236, 255, 0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+    const g2 = ctx.createRadialGradient(W * 0.08, H * 0.95, 0, W * 0.08, H * 0.95, W * 0.5);
+    g2.addColorStop(0, "rgba(255, 214, 232, 0.8)");
+    g2.addColorStop(1, "rgba(255, 214, 232, 0)");
+    ctx.fillStyle = g2;
+    ctx.fillRect(0, 0, W, H);
+  }
+  function polkaBG(t) {
+    milkBG();
+    const sp = 76, off = (t * 26) % sp;
+    ctx.fillStyle = C.dot;
+    ctx.beginPath();
+    for (let row = -1; row < H / sp + 2; row++) {
+      const y = row * sp + off;
+      const shift = (row & 1) ? sp / 2 : 0;
+      for (let col = -1; col < W / sp + 2; col++) {
+        const x = col * sp + shift + off * 0.6;
+        ctx.moveTo(x + 9, y);
+        ctx.arc(x, y, 9, 0, TAU);
+      }
+    }
+    ctx.fill();
+  }
+  function nightBG(t, a) {
+    if (a <= 0) return;
+    ctx.save();
+    ctx.globalAlpha = a;
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, C.deep);
+    g.addColorStop(1, C.royal);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+    for (const s of stars) {
+      const tw = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(TAU * s.k * t / 2 + s.p));
+      ctx.globalAlpha = a * tw;
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, TAU); ctx.fill();
+    }
+    ctx.restore();
+  }
+  function skyBG(t) {
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, "#94d2ff");
+    g.addColorStop(1, "#dff2ff");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+    // soft cumulus drifting behind the type
+    ctx.fillStyle = "rgba(255,255,255,0.75)";
+    for (const [bx, by, s, sp] of [[260, 880, 1.2, 18], [1500, 170, 1.0, -14], [1780, 900, 0.9, 12], [80, 150, 0.8, -10]]) {
+      const x = ((bx + sp * t) % (W + 600) + W + 600) % (W + 600) - 300;
+      ctx.beginPath();
+      for (const [dx, dy, r] of [[-90, 20, 70], [-20, -20, 95], [80, 0, 80], [150, 30, 55], [20, 40, 70]]) {
+        ctx.moveTo(x + dx * s + r * s, by + dy * s);
+        ctx.arc(x + dx * s, by + dy * s, r * s, 0, TAU);
+      }
+      ctx.fill();
+    }
+  }
+
+  // ---------- marquee (chorus 2 background) ----------
+  let marquee = null;
+  function buildMarquee() {
+    ctx.save();
+    const items = [];
+    let w = 0;
+    ctx.font = "700 150px " + F.puff;
+    const a = ctx.measureText("MILKY MELKY").width;
+    ctx.font = "400 124px " + F.pop;
+    const b = ctx.measureText("ミルキーメルキー").width;
+    const gap = 150;
+    items.push({ kind: "en", x: 0 }); w += a + gap;
+    items.push({ kind: "heart", x: w - gap / 2 });
+    items.push({ kind: "jp", x: w }); w += b + gap;
+    items.push({ kind: "heart", x: w - gap / 2 });
+    marquee = { items, w };
+    ctx.restore();
+  }
+  function drawMarquee(t, y, dir, speed, a) {
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.textBaseline = "middle";
+    let off = ((dir * speed * t) % marquee.w + marquee.w) % marquee.w - marquee.w;
+    for (let base = off; base < W; base += marquee.w) {
+      for (const it of marquee.items) {
+        const x = base + it.x;
+        if (it.kind === "en") {
+          ctx.font = "700 150px " + F.puff;
+          ctx.fillStyle = "#ffffff";
+          ctx.fillText("MILKY MELKY", x, y + 6);
+        } else if (it.kind === "jp") {
+          ctx.font = "400 124px " + F.pop;
+          ctx.fillStyle = "rgba(255,255,255,0.0)";
+          ctx.lineWidth = 5;
+          ctx.strokeStyle = "#ffffff";
+          ctx.strokeText("ミルキーメルキー", x, y + 4);
+        } else {
+          ctx.fillStyle = C.pink;
+          ctx.beginPath();
+          heartPath(ctx, x, y, 58 * (1 + 0.18 * pulse(t)));
+          ctx.fill();
+        }
+      }
+    }
+    ctx.restore();
+  }
+
+  // ---------- lyrics ----------
+  const LYRICS = [
+    { t0: 0.15, t1: 3.62, jp: "ひとりの時も　浮かぶ顔", en: "Even when I'm alone, your face comes to mind", light: true },
+    { t0: 3.72, t1: 7.36, jp: "理由もなくて　笑っちゃう", en: "I end up smiling for no reason at all", light: false },
+    { t0: 7.5, t1: 11.1, jp: "静かに満ちてく　この気持ち", en: "Quietly, this feeling fills me up", light: true },
+    { t0: 11.22, t1: 14.1, jp: "大事に包んで", en: "I wrap it up and hold it close", light: true },
+    { t0: 15.02, t1: 18.5, jp: "ミルキーメルキー　溶けてゆくように", en: "Milky Melky, as if I'm melting away", light: false, melt: 9 },
+    { t0: 18.72, t1: 22.36, jp: "甘い想いが　広がってく", en: "This sweet feeling keeps on spreading", light: false },
+    { t0: 22.47, t1: 26.05, jp: "ミルキーメルキー　優しい時間が", en: "Milky Melky, this gentle time", light: true },
+    { t0: 26.22, t1: 27.72, jp: "胸の奥で　光ってる", en: "is glowing deep inside my heart", light: false }
+  ];
+  const LY_SIZE = 60, LY_Y = 952, EN_Y = 1004;
+  function layoutLyrics() {
+    ctx.save();
+    ctx.font = `900 ${LY_SIZE}px ${F.maru}`;
+    for (const L of LYRICS) {
+      const chars = [...L.jp];
+      const ws = chars.map(ch => ch === "　" ? LY_SIZE * 0.55 : ctx.measureText(ch).width + LY_SIZE * 0.04);
+      const total = ws.reduce((a, b) => a + b, 0);
+      let x = W / 2 - total / 2;
+      L.chars = chars.map((ch, i) => {
+        const c = { ch, x: x + ws[i] / 2, w: ws[i], title: i < 8 && L.jp.startsWith("ミルキーメルキー") };
+        x += ws[i];
+        return c;
+      });
+      const r = rng(L.jp.length * 97);
+      L.drip = L.chars.map(() => 0.5 + r());
+    }
+    ctx.restore();
+  }
+  function drawLyric(L, t) {
+    if (t < L.t0 - 0.05 || t > L.t1 + 0.5) return;
+    const chorus = inChorus(t);
+    const bi = beatIndex(t), pl = pulse(t, 7);
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    ctx.lineJoin = "round";
+    ctx.font = `900 ${LY_SIZE}px ${F.maru}`;
+    L.chars.forEach((c, i) => {
+      if (c.ch === "　") return;
+      const pin = seg(t, L.t0 + i * 0.032, L.t0 + i * 0.032 + 0.42);
+      if (pin <= 0) return;
+      const pout = seg(t, L.t1 - 0.22 + i * 0.014, L.t1 + 0.1 + i * 0.014);
+      if (pout >= 1) return;
+      const sc = lerp(0.35, 1, easeOutBack(pin, 2.6));
+      let dy = (1 - easeOut(pin)) * 26 - easeIn(pout) * 18;
+      if (chorus) dy -= 7 * pl * ((i + bi) % 2 ? 1 : 0.35);
+      let sy = 1;
+      // 溶けてゆくように: the characters sag and drip
+      let melt = 0;
+      if (L.melt !== undefined && i >= L.melt) {
+        melt = easeInOut(seg(t, 16.9 + (i - L.melt) * 0.07, 18.1 + (i - L.melt) * 0.07));
+        dy += melt * 8;
+        sy = 1 + melt * 0.1;
+      }
+      const a = clamp(pin * 3) * (1 - pout);
+      ctx.globalAlpha = a;
+      ctx.save();
+      ctx.translate(c.x, LY_Y + dy);
+      ctx.scale(sc, sc * sy);
+      if (melt > 0) {
+        // drip hanging under the glyph
+        const len = 10 + melt * 44 * L.drip[i];
+        const dx = (L.drip[i] - 1) * 14;
+        ctx.beginPath();
+        ctx.moveTo(dx - 7, 4);
+        ctx.lineTo(dx - 7, 4 + len);
+        ctx.arc(dx, 4 + len, 7, Math.PI, 0, true);
+        ctx.lineTo(dx + 7, 4);
+        ctx.closePath();
+        ctx.fillStyle = "#ffffff";
+        ctx.strokeStyle = C.royal;
+        ctx.lineWidth = 4;
+        ctx.stroke();
+        ctx.fill();
+      }
+      ctx.strokeStyle = C.royal;
+      ctx.lineWidth = 13;
+      ctx.strokeText(c.ch, 0, 0);
+      ctx.fillStyle = c.title ? "#ffd6e8" : "#ffffff";
+      ctx.fillText(c.ch, 0, 0);
+      ctx.restore();
+    });
+    // English line underneath
+    const ea = seg(t, L.t0 + 0.25, L.t0 + 0.7) * (1 - seg(t, L.t1 - 0.15, L.t1 + 0.2));
+    if (ea > 0) {
+      ctx.globalAlpha = ea;
+      ctx.font = "500 21px " + F.mono;
+      if ("letterSpacing" in ctx) ctx.letterSpacing = "2px";
+      ctx.fillStyle = L.light ? C.navy : "#ffffff";
+      if (!L.light) { ctx.shadowColor = "rgba(16, 26, 85, 0.7)"; ctx.shadowBlur = 10; }
+      ctx.fillText(L.en, W / 2, EN_Y + (1 - easeOut(seg(t, L.t0 + 0.25, L.t0 + 0.7))) * 8);
+    }
+    ctx.restore();
+  }
+
+  // ---------- title lettering ----------
+  function titleLayout(text, size) {
+    ctx.save();
+    ctx.font = `700 ${size}px ${F.puff}`;
+    const chars = [...text];
+    const ws = chars.map(ch => ch === " " ? size * 0.28 : ctx.measureText(ch).width - size * 0.01);
+    ctx.restore();
+    const total = ws.reduce((a, b) => a + b, 0);
+    let x = -total / 2;
+    return chars.map((ch, i) => { const c = { ch, x: x + ws[i] / 2 }; x += ws[i]; return c; });
+  }
+  let TITLE_BIG, TITLE_END;
+  // letters drop in with a squash, bob to the beat, then optionally melt away
+  function drawTitle(layout, cx, base, size, t, tIn, opt = {}) {
+    const t0 = tIn;
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    ctx.lineJoin = "round";
+    ctx.font = `700 ${size}px ${F.puff}`;
+    const bi = beatIndex(t), pl = pulse(t, 8);
+    let li = 0;
+    for (const c of layout) {
+      if (c.ch === " ") { li++; continue; }
+      const d = t0 + li * (opt.stagger ?? 0.055);
+      const p = seg(t, d, d + 0.62);
+      if (p <= 0) { li++; continue; }
+      const fall = 1 - bounceOut(p);
+      const land = Math.max(0, 1 - Math.abs(p - 0.36) / 0.14);
+      let sx = 1 + 0.14 * land, sy = 1 - 0.16 * land;
+      let dy = -fall * (opt.drop ?? 420);
+      if (p >= 1) dy -= (opt.bob ?? 12) * pl * ((li + bi) % 2 ? 1 : 0.3);
+      let a = clamp(p * 4);
+      if (opt.meltAt !== undefined) {
+        const m = easeIn(seg(t, opt.meltAt + li * 0.035, opt.meltAt + 0.5 + li * 0.035));
+        dy += m * 150;
+        sy *= 1 + m * 0.6;
+        sx *= 1 - m * 0.25;
+        a *= 1 - m;
+      }
+      if (opt.alpha !== undefined) a *= opt.alpha;
+      if (a <= 0) { li++; continue; }
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.translate(cx + c.x, base + dy);
+      ctx.rotate(Math.sin(li * 1.7) * 0.05);
+      ctx.scale(sx, sy);
+      // candy extrusion, blue outline, milky fill
+      ctx.fillStyle = C.pink;
+      ctx.strokeStyle = C.pink;
+      ctx.lineWidth = size * 0.13;
+      ctx.strokeText(c.ch, size * 0.03, size * 0.06);
+      ctx.fillText(c.ch, size * 0.03, size * 0.06);
+      ctx.strokeStyle = C.royal;
+      ctx.lineWidth = size * 0.11;
+      ctx.strokeText(c.ch, 0, 0);
+      const g = ctx.createLinearGradient(0, -size * 0.75, 0, 0);
+      g.addColorStop(0, "#ffffff");
+      g.addColorStop(1, "#ffeaf3");
+      ctx.fillStyle = g;
+      ctx.fillText(c.ch, 0, 0);
+      ctx.restore();
+      li++;
+    }
+    ctx.restore();
+  }
+
+  // ---------- melting curtain (milk with strawberry sauce leading) ----------
+  function curtainLayer(t, tc, color, half = 0.56) {
+    const u = seg(t, tc - half, tc + half);
+    if (u <= 0 || u >= 1) return;
+    const dripMax = 260, bandH = H + dripMax + 120;
+    const e = sine(u);
+    // at u = 0.5 the band exactly spans the frame
+    const bottom = lerp(-dripMax - 20, H + bandH + dripMax, e);
+    const top = bottom - bandH;
+    const grow = 0.55 + 0.45 * Math.sin(Math.PI * u);
+    ctx.beginPath();
+    ctx.moveTo(-20, top);
+    for (let x = -20; x <= W + 20; x += 40) ctx.lineTo(x, top - 26 * Math.sin(x * 0.006 + tc * 3) - 20);
+    ctx.lineTo(W + 20, bottom);
+    for (let i = drips.length - 1; i >= 0; i--) {
+      const d = drips[i];
+      const len = d.len * grow + 14 * Math.sin(t * 5 + d.p);
+      const r = d.w / 2, x = d.x;
+      ctx.lineTo(x + r + 18, bottom);
+      ctx.quadraticCurveTo(x + r, bottom, x + r, bottom + 18);
+      ctx.lineTo(x + r, bottom + len);
+      ctx.arc(x, bottom + len, r, 0, Math.PI);
+      ctx.lineTo(x - r, bottom + 18);
+      ctx.quadraticCurveTo(x - r, bottom, x - r - 18, bottom);
+    }
+    ctx.lineTo(-20, bottom);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+    // glossy highlight along the drips
+    ctx.save();
+    ctx.clip();
+    ctx.strokeStyle = "rgba(255,255,255,0.55)";
+    ctx.lineWidth = 8;
+    ctx.lineCap = "round";
+    for (const d of drips) {
+      const len = d.len * grow;
+      ctx.beginPath();
+      ctx.moveTo(d.x - d.w * 0.22, bottom + 14);
+      ctx.lineTo(d.x - d.w * 0.22, bottom + len - 6);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+  function curtain(t, tc, lead) {
+    curtainLayer(t, tc - 0.08, lead);
+    curtainLayer(t, tc, C.milk);
+  }
+
+  // ---------- scenes ----------
+  const CIRCLE = { x: 960, y: 440, r: 318 };
+  const RING_TEXT = "MILKY MELKY ✦ AMELUNA ✦ POLARIS DROP ✦ TRACK 03 ✦ ";
+  function ringText(cx, cy, r, t, a, color) {
+    if (a <= 0) return;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.font = "500 22px " + F.mono;
+    ctx.fillStyle = color;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const chars = [...RING_TEXT + RING_TEXT];
+    const step = TAU / chars.length;
+    const rot = t * 0.22;
+    chars.forEach((ch, i) => {
+      const ang = rot + i * step;
+      ctx.save();
+      ctx.translate(cx + Math.cos(ang) * r, cy + Math.sin(ang) * r);
+      ctx.rotate(ang + Math.PI / 2);
+      ctx.fillText(ch, 0, 0);
+      ctx.restore();
+    });
+    ctx.restore();
+  }
+
+  function sceneOpening(t) {
+    milkBG();
+    const hit = BEAT;           // the drop lands on beat 2
+    const cx = CIRCLE.x;
+    const ex = easeInOut(seg(t, 3.02, 3.75));
+    const cy = lerp(CIRCLE.y, H / 2, ex);
+    let r = CIRCLE.r * easeOutBack(seg(t, hit, hit + 0.7), 1.6);
+    r = lerp(r, 1180, ex);
+
+    // ripples where the drop lands
+    for (let k = 0; k < 3; k++) {
+      const rt = t - hit - k * 0.14;
+      if (rt <= 0 || rt > 1.4) continue;
+      ctx.globalAlpha = (1 - rt / 1.4) * 0.8;
+      ctx.strokeStyle = k === 1 ? C.pink : "#9fd4ff";
+      ctx.lineWidth = 5 - k;
+      ctx.beginPath();
+      ctx.ellipse(cx, CIRCLE.y, 60 + rt * 620, (60 + rt * 620) * 0.96, 0, 0, TAU);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    if (r > 1) {
+      // soft shadow + white rim
+      ctx.save();
+      ctx.shadowColor = "rgba(36, 70, 216, 0.25)";
+      ctx.shadowBlur = 50;
+      ctx.shadowOffsetY = 18;
+      ctx.fillStyle = "#fff";
+      ctx.beginPath(); ctx.arc(cx, cy, r + 12, 0, TAU); ctx.fill();
+      ctx.restore();
+      ctx.save();
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.clip();
+      const v = art(FULL, camFace(t), { ax: cx, ay: cy, noClip: true });
+      eyeTwinkles(t, v, seg(t, 1.2, 1.6));
+      ctx.restore();
+      ctx.strokeStyle = C.royal;
+      ctx.lineWidth = 3;
+      ctx.globalAlpha = 1 - ex;
+      ctx.beginPath(); ctx.arc(cx, cy, r + 26, 0, TAU); ctx.stroke();
+      ctx.globalAlpha = 1;
+      ringText(cx, cy, r + 58, t, seg(t, 0.8, 1.4) * (1 - ex * 3), C.royal);
+      // stickers orbiting the portal, popping on the beat
+      const pops = [["heart", -0.95, 1.2], ["moon", -2.3, 1.43], ["star", 0.35, 1.67], ["berry", 2.5, 1.9]];
+      for (const [kind, ang, at] of pops) {
+        const p = easeOutBack(seg(t, at, at + 0.4), 2.2) * (1 - ex);
+        const rr_ = r + 92;
+        const a2 = ang + Math.sin(t * 1.3 + ang) * 0.04;
+        sticker(kind, cx + Math.cos(a2) * rr_, cy + Math.sin(a2) * rr_ * 0.92 + Math.sin(t * 2 + ang) * 6, 96 * p, Math.sin(t * 1.6 + ang) * 0.16, clamp(p * 3));
+      }
+    }
+
+    // milk splash crown
+    const st = t - hit;
+    if (st > 0 && st < 1.2) {
+      for (const d of splash) {
+        const [x, y] = particleAt(d, cx, CIRCLE.y - 20, st, 1900, 1.6);
+        const a = 1 - st / 1.2;
+        ctx.globalAlpha = a;
+        ctx.fillStyle = "#ffffff";
+        ctx.strokeStyle = "#8fcfff";
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(x, y, d.size * 0.45, 0, TAU); ctx.fill(); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+    // the falling milk drop
+    if (t < hit) {
+      const p = t / hit;
+      const y = lerp(-90, CIRCLE.y - 10, p * p);
+      glow("sky", 960, y - 20, 90, 0.6);
+      ctx.beginPath(); dropPath(ctx, 960, y, 30, 1 + p * 0.5);
+      ctx.fillStyle = "#ffffff"; ctx.fill();
+      ctx.strokeStyle = C.royal; ctx.lineWidth = 4; ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(950, y - 8, 6, 10, 0.3, 0, TAU);
+      ctx.fillStyle = "#cfe9ff"; ctx.fill();
+    }
+  }
+
+  function eyeTwinkles(t, v, a) {
+    if (a <= 0) return;
+    const bi = beatIndex(t);
+    [P.eyeL, P.eyeR].forEach((e, i) => {
+      const [x, y] = toScreen(v, e);
+      const on = (bi + i) % 2 === 0 ? pulse(t, 5) : 0.25;
+      const s = v.s * (10 + 16 * on);
+      glow("white", x, y, s * 2.2, 0.6 * a);
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.translate(x, y);
+      ctx.rotate(t * 0.8);
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath(); sparklePath(ctx, 0, 0, s, 0.14); ctx.fill();
+      ctx.restore();
+    });
+  }
+
+  function sceneSmile(t) {
+    const v = art(FULL, camFace(t));
+    eyeTwinkles(t, v, 1);
+    // little hearts pop off her cheeks, one per beat
+    const b0 = Math.ceil(3.75 / BEAT);
+    for (let b = b0; b < b0 + 9; b++) {
+      const bt = b * BEAT, age = t - bt;
+      if (age < 0 || age > 1.1) continue;
+      const cheek = toScreen(v, b % 2 ? P.cheekL : P.cheekR);
+      const side = b % 2 ? -1 : 1;
+      const p = easeOut(age / 1.1);
+      const x = cheek[0] + side * (40 + 120 * p), y = cheek[1] - 30 - 210 * p;
+      const s = 70 * easeOutBack(clamp(age / 0.3), 2.5);
+      drawBit("heart", x, y, s, side * 0.25 * p, 1, b % 3 ? C.pink : "#ffffff", 1 - clamp((age - 0.7) / 0.4));
+    }
+  }
+
+  function milkFill(t, a) {
+    const lvl = easeOut(seg(t, 7.7, 10.8));
+    if (lvl <= 0 || a <= 0) return;
+    const base = H - 30 - lvl * 250;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.beginPath();
+    ctx.moveTo(0, H);
+    for (let x = 0; x <= W; x += 24) {
+      ctx.lineTo(x, base + Math.sin(x * 0.009 + t * 3.2) * 12 + Math.sin(x * 0.021 - t * 2.1) * 6);
+    }
+    ctx.lineTo(W, H);
+    ctx.closePath();
+    const g = ctx.createLinearGradient(0, base - 20, 0, H);
+    g.addColorStop(0, "rgba(255, 250, 244, 0.97)");
+    g.addColorStop(1, "rgba(255, 236, 222, 0.97)");
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.strokeStyle = "rgba(143, 207, 255, 0.9)";
+    ctx.lineWidth = 5;
+    ctx.stroke();
+    // bubbles rising through the milk
+    for (let i = 0; i < 18; i++) {
+      const x = (i * 211) % W + Math.sin(t * 2 + i) * 14;
+      const y = H - ((t * (60 + (i % 5) * 18) + i * 67) % (H - base + 30));
+      const r = 5 + (i % 4) * 3;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, TAU);
+      ctx.strokeStyle = "rgba(143, 207, 255, 0.8)";
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  const CARD = { x: 370, y: 132, w: 1180, h: 664, r: 46 };
+  function cardRect(t) {
+    const k = easeInOut(seg(t, 10.95, 11.7));
+    const bob = Math.sin(t * 2.3) * 6 * k;
+    const build = t > 13.125 && t < 14.06 ? 0.035 * pulse(t, 7) : 0;
+    const shrink = easeInBack(seg(t, 14.02, 14.7), 1.4);
+    const sc = (1 + build) * (1 - shrink);
+    const w = lerp(W, CARD.w, k) * sc, h = lerp(H, CARD.h, k) * sc;
+    const cx = lerp(W / 2, CARD.x + CARD.w / 2, k), cy = lerp(H / 2, CARD.y + CARD.h / 2, k) + bob;
+    return { x: cx - w / 2, y: cy - h / 2, w, h, r: lerp(0, CARD.r, k) * sc, k, sc, rot: shrink * 0.35 };
+  }
+  function sceneCard(t) {
+    const rc = cardRect(t);
+    if (rc.k > 0) polkaBG(t);
+    nightBG(t, sine(seg(t, 14.0, 14.45)));
+    if (rc.sc <= 0.01) return;
+    const cam = rc.k < 1 ? mixCam(camLatte(t), camCard(t), rc.k) : camCard(t);
+    ctx.save();
+    ctx.translate(rc.x + rc.w / 2, rc.y + rc.h / 2);
+    ctx.rotate(rc.rot);
+    ctx.translate(-(rc.x + rc.w / 2), -(rc.y + rc.h / 2));
+    if (rc.k > 0) {
+      ctx.save();
+      ctx.shadowColor = "rgba(36, 70, 216, 0.28)";
+      ctx.shadowBlur = 60 * rc.k;
+      ctx.shadowOffsetY = 26 * rc.k;
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath(); rr(ctx, rc.x - 14 * rc.k, rc.y - 14 * rc.k, rc.w + 28 * rc.k, rc.h + 28 * rc.k, rc.r + 14 * rc.k); ctx.fill();
+      ctx.restore();
+    }
+    const v = art(rc, cam);
+    if (rc.k < 1) milkFill(t, 1 - rc.k);
+    else eyeTwinkles(t, v, 0.8);
+    drawRibbon(t, rc);
+    ctx.restore();
+  }
+  function drawRibbon(t, rc) {
+    const vIn = easeInOut(seg(t, 11.55, 12.15));
+    const hIn = easeInOut(seg(t, 11.8, 12.4));
+    if (vIn <= 0) return;
+    const s = rc.w / CARD.w;
+    const bw = 50 * s;
+    const vx = rc.x + rc.w * 0.84, hy = rc.y + rc.h * 0.8;
+    ctx.save();
+    ctx.beginPath(); rr(ctx, rc.x, rc.y, rc.w, rc.h, rc.r); ctx.clip();
+    const band = (x, y, w, h) => {
+      ctx.fillStyle = C.ribbon;
+      ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = C.ribbonHi;
+      if (w < h) { ctx.fillRect(x + w * 0.12, y, w * 0.08, h); ctx.fillRect(x + w * 0.8, y, w * 0.08, h); }
+      else { ctx.fillRect(x, y + h * 0.12, w, h * 0.08); ctx.fillRect(x, y + h * 0.8, w, h * 0.08); }
+    };
+    ctx.shadowColor = "rgba(90, 10, 50, 0.25)";
+    ctx.shadowBlur = 12;
+    band(vx - bw / 2, rc.y, bw, rc.h * vIn);
+    if (hIn > 0) band(rc.x, hy - bw / 2, rc.w * hIn, bw);
+    ctx.restore();
+    // the bow
+    const b = easeOutBack(seg(t, 12.3, 12.75), 2.4);
+    if (b <= 0) return;
+    const bs = s * b * (1 + 0.06 * pulse(t, 6));
+    ctx.save();
+    ctx.translate(vx, hy);
+    ctx.rotate(Math.sin(t * 2.6) * 0.06);
+    ctx.scale(bs, bs);
+    ctx.lineJoin = "round";
+    const loop = dir => {
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.bezierCurveTo(dir * 40, -86, dir * 150, -70, dir * 128, 4);
+      ctx.bezierCurveTo(dir * 112, 54, dir * 40, 30, 0, 0);
+      ctx.closePath();
+    };
+    const tail = dir => {
+      ctx.beginPath();
+      ctx.moveTo(dir * 8, 6);
+      ctx.lineTo(dir * 70, 120);
+      ctx.lineTo(dir * 50, 112);
+      ctx.lineTo(dir * 40, 130);
+      ctx.lineTo(-dir * 10, 12);
+      ctx.closePath();
+    };
+    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 14;
+    for (const d of [-1, 1]) { tail(d); ctx.stroke(); loop(d); ctx.stroke(); }
+    ctx.fillStyle = "#d93b86";
+    for (const d of [-1, 1]) { tail(d); ctx.fill(); }
+    ctx.fillStyle = C.ribbon;
+    for (const d of [-1, 1]) { loop(d); ctx.fill(); }
+    ctx.strokeStyle = C.ribbonHi; ctx.lineWidth = 6;
+    for (const d of [-1, 1]) {
+      ctx.beginPath(); ctx.moveTo(d * 30, -18); ctx.quadraticCurveTo(d * 80, -52, d * 108, -20); ctx.stroke();
+    }
+    ctx.beginPath(); rr(ctx, -24, -22, 48, 42, 14);
+    ctx.fillStyle = C.ribbon; ctx.fill();
+    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 6; ctx.stroke();
+    ctx.restore();
+  }
+  // rising hearts during the build, and the Polaris drop that falls into the chorus
+  function buildUp(t) {
+    if (t > 12.9 && t < 14.4) {
+      const a = window_(t, 12.9, 13.2, 14.0, 14.4);
+      for (let i = 0; i < 16; i++) {
+        const sp = 300 + (i % 5) * 70;
+        const y = H + 60 - ((t - 12.9) * sp + (i * 97) % 300);
+        const x = (i * 131 + 80) % W + Math.sin(t * 3 + i) * 30;
+        drawBit("heart", x, y, 30 + (i % 4) * 12, Math.sin(t * 2 + i) * 0.3, 1, i % 3 ? C.pink : "#ffffff", a * 0.9);
+      }
+    }
+    if (t >= 14.25 && t < DROP) {
+      const p = seg(t, 14.25, DROP);
+      const y = lerp(-140, H / 2, Math.pow(p, 2.3));
+      const r = 34 + 10 * p;
+      for (let k = 1; k <= 7; k++) {
+        const py = lerp(-140, H / 2, Math.pow(clamp(p - k * 0.035), 2.3));
+        glow("white", 960 + Math.sin(k * 2.1) * 10, py - r, 14 - k, 0.8);
+        ctx.fillStyle = "#ffffff";
+        ctx.globalAlpha = 1 - k / 8;
+        ctx.beginPath(); sparklePath(ctx, 960 + Math.sin(k * 2.1) * 10, py - r * 1.6, 9 - k * 0.6); ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      glow("pink", 960, y - r * 0.6, r * 4, 0.75);
+      ctx.save();
+      ctx.beginPath(); dropPath(ctx, 960, y, r, 1 + p * 0.4);
+      const g = ctx.createLinearGradient(0, y - r * 2.5, 0, y + r);
+      g.addColorStop(0, "#ffffff");
+      g.addColorStop(0.55, "#bfe3ff");
+      g.addColorStop(1, "#ff9ccb");
+      ctx.fillStyle = g; ctx.fill();
+      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 5; ctx.stroke();
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath(); sparklePath(ctx, 960, y - r * 0.15, r * 0.62, 0.15); ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  function lightLeak(t, a) {
+    ctx.save();
+    ctx.globalCompositeOperation = "screen";
+    const x = W * 0.86 + Math.sin(t * 0.7) * 60, y = H * 0.06;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, W * 0.55);
+    g.addColorStop(0, `rgba(255, 214, 170, ${0.55 * a})`);
+    g.addColorStop(0.5, `rgba(255, 150, 200, ${0.18 * a})`);
+    g.addColorStop(1, "rgba(255, 150, 200, 0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+  }
+
+  function sceneDrop(t) {
+    art(FULL, camDrop(t));
+    lightLeak(t, 0.7 + 0.3 * pulse(t, 5));
+    // shockwave rings from the impact
+    for (let k = 0; k < 3; k++) {
+      const rt = t - DROP - k * 0.1;
+      if (rt <= 0 || rt > 1) continue;
+      ctx.globalAlpha = (1 - rt) * 0.9;
+      ctx.strokeStyle = k === 1 ? C.pink : "#ffffff";
+      ctx.lineWidth = 14 * (1 - rt) + 2;
+      ctx.beginPath(); ctx.arc(960, 540, 80 + easeOut(rt) * 1100, 0, TAU); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+  function drawConfetti(t) {
+    const dt = t - DROP;
+    if (dt <= 0 || dt > 3.6) return;
+    for (const c of confetti) {
+      if (dt > c.life) continue;
+      const [x, y] = particleAt(c, 960, 540, dt, 1100, 2.2);
+      const a = 1 - clamp((dt - c.life + 0.5) / 0.5);
+      drawBit(c.kind, x, y, c.size * (c.kind === "berry" ? 1.4 : 1), c.rot + c.spin * dt, Math.cos(c.flip * dt), c.color, a);
+    }
+  }
+
+  function sceneSweet(t) {
+    const v = art(FULL, camSweet(t));
+    const [hx, hy] = toScreen(v, P.chest);
+    ctx.save();
+    ctx.globalCompositeOperation = "screen";
+    const g = ctx.createRadialGradient(hx, hy - 80, 0, hx, hy - 80, 900);
+    g.addColorStop(0, "rgba(255, 140, 190, 0.42)");
+    g.addColorStop(1, "rgba(255, 140, 190, 0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+    // rings of hearts spreading out, one every two beats
+    const first = Math.ceil(18.75 / BEAT / 2) * 2;
+    for (let b = first - 2; b < first + 16; b += 2) {
+      const age = t - b * BEAT;
+      if (age < 0 || age > 1.9) continue;
+      const p = age / 1.9;
+      const rad = 60 + easeOut(p) * 980;
+      const a = Math.pow(1 - p, 1.4);
+      ctx.save();
+      ctx.globalAlpha = a * 0.9;
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 7 * (1 - p) + 2;
+      ctx.beginPath(); heartPath(ctx, hx, hy - 30, rad * 1.5); ctx.stroke();
+      ctx.restore();
+      const n = 12;
+      for (let i = 0; i < n; i++) {
+        const ang = i / n * TAU + b * 0.4 + p * 0.6;
+        drawBit("heart", hx + Math.cos(ang) * rad * 0.62, hy - 30 + Math.sin(ang) * rad * 0.55, 34 * (1 - p * 0.4), ang + Math.PI / 2, 1, i % 2 ? C.pink : "#ffffff", a);
+      }
+    }
+    lightLeak(t, 0.6);
+  }
+
+  // polaroid with stickers over the marquee; zooms into the full frame at 26 s
+  const PH = { w: 820, h: 461, side: 30, top: 30, bottom: 118 };
+  function scenePola(t) {
+    skyBG(t);
+    const rowA = seg(t, 22.3, 22.7);
+    drawMarquee(t, 190, 1, 150, 0.6 * rowA);
+    drawMarquee(t + 3, 468, -1, 120, 0.5 * rowA);
+    drawMarquee(t + 7, 746, 1, 170, 0.6 * rowA);
+    const m = easeInOut(seg(t, 25.92, 26.5));
+    const full = W / PH.w;
+    const bob = Math.sin(t * 2.1) * 8;
+    const kick = pulse(t, 8) * (1 - m);
+    const sc = lerp(1 + 0.025 * kick, full, m);
+    const rot = lerp(-0.05 + Math.sin(t * 1.4) * 0.02 + kick * 0.012, 0, m);
+    const totalH = PH.top + PH.h + PH.bottom;
+    const offY = (PH.top + PH.h / 2) - totalH / 2;     // photo centre relative to card centre
+    const cx = lerp(960, 960, m), cy = lerp(470 + bob, H / 2 - offY * full, m);
+    const cam = m > 0 ? mixCam(camPola(t), camHeart(t), m) : camPola(t);
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rot);
+    ctx.scale(sc, sc);
+    const cw = PH.w + PH.side * 2;
+    ctx.save();
+    ctx.shadowColor = "rgba(22, 32, 92, 0.3)";
+    ctx.shadowBlur = 40;
+    ctx.shadowOffsetY = 20;
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath(); rr(ctx, -cw / 2, -totalH / 2, cw, totalH, 18); ctx.fill();
+    ctx.restore();
+    const photo = { x: -PH.w / 2, y: -totalH / 2 + PH.top, w: PH.w, h: PH.h, r: 8 };
+    const v = art(photo, cam);
+    eyeTwinkles(t, { ax: v.ax, ay: v.ay, s: v.s, fx: v.fx, fy: v.fy }, 0.7 * (1 - m));
+    // caption on the polaroid
+    ctx.fillStyle = C.royal;
+    ctx.font = "700 50px " + F.puff;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    const capY = totalH / 2 - PH.bottom / 2 + 4;
+    ctx.fillText("Milky Melky", -PH.w / 2 + 6, capY);
+    ctx.fillStyle = C.pink;
+    ctx.beginPath(); heartPath(ctx, -PH.w / 2 + 6 + 326, capY - 2, 40 * (1 + 0.25 * pulse(t, 7))); ctx.fill();
+    ctx.fillStyle = C.navy;
+    ctx.globalAlpha = 0.7;
+    ctx.font = "500 20px " + F.mono;
+    ctx.textAlign = "right";
+    ctx.fillText("AMELUNA  ·  POLARIS DROP", PH.w / 2 - 4, capY + 2);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+
+    // stickers pop in on successive beats
+    const S = [
+      ["badge", -520, -250, 170, -0.18, 22.5],
+      ["moon", 470, -270, 150, 0.3, 22.5 + BEAT],
+      ["berry", 500, 215, 150, 0.22, 22.5 + BEAT * 2],
+      ["cloud", -505, 190, 170, -0.1, 22.5 + BEAT * 3],
+      ["star", 580, -40, 96, 0.2, 22.5 + BEAT * 5],
+      ["heart", -600, 10, 100, -0.3, 22.5 + BEAT * 6]
+    ];
+    const bi = beatIndex(t);
+    S.forEach(([kind, dx, dy, size, r0, at], i) => {
+      const p = easeOutBack(seg(t, at, at + 0.38), 2.6);
+      if (p <= 0) return;
+      const bounce = ((bi + i) % 2 ? 0.08 : 0.02) * pulse(t, 7);
+      const x = 960 + dx * lerp(1, 2.6, m), y = 470 + dy * lerp(1, 2.6, m) + Math.sin(t * 2.2 + i) * 8;
+      sticker(kind, x, y, size * p * (1 + bounce), r0 + Math.sin(t * 1.8 + i) * 0.08, 1 - m);
+    });
+  }
+
+  function sceneHeart(t) {
+    const v = art(FULL, camHeart(t));
+    lightLeak(t, 0.5);
+    const [hx, hy0] = toScreen(v, P.chest);
+    const hy = hy0 - 20;
+    const g = easeOutBack(seg(t, 26.5, 27.25), 1.8);
+    if (g <= 0) return;
+    const R_ = 150 * g * (1 + 0.1 * pulse(t, 6));
+    // soft rays
+    ctx.save();
+    ctx.globalCompositeOperation = "screen";
+    ctx.translate(hx, hy);
+    ctx.rotate(t * 0.25);
+    for (let i = 0; i < 14; i++) {
+      ctx.rotate(TAU / 14);
+      const len = R_ * (4.5 + (i % 3));
+      const gr = ctx.createLinearGradient(0, 0, len, 0);
+      gr.addColorStop(0, `rgba(255, 240, 220, ${0.5 * g})`);
+      gr.addColorStop(1, "rgba(255, 240, 220, 0)");
+      ctx.fillStyle = gr;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(len, -len * 0.05);
+      ctx.lineTo(len, len * 0.05);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+    glow("gold", hx, hy, R_ * 3.2, 0.7);
+    glow("white", hx, hy, R_ * 1.8, 1);
+    glow("pink", hx, hy, R_ * 2.4, 0.5);
+    // Polaris: the four-point star at the heart
+    ctx.save();
+    ctx.translate(hx, hy);
+    ctx.rotate(Math.sin(t * 1.3) * 0.1);
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath(); sparklePath(ctx, 0, 0, R_ * 0.95, 0.12); ctx.fill();
+    ctx.rotate(Math.PI / 4);
+    ctx.globalAlpha = 0.7;
+    ctx.beginPath(); sparklePath(ctx, 0, 0, R_ * 0.5, 0.12); ctx.fill();
+    ctx.restore();
+    // small sparkles orbiting
+    for (let i = 0; i < 9; i++) {
+      const ang = t * 0.9 + i / 9 * TAU;
+      const rad = R_ * (1.6 + 0.5 * Math.sin(t * 2 + i));
+      const tw = 0.5 + 0.5 * Math.sin(t * 6 + i * 2);
+      ctx.globalAlpha = g * tw;
+      ctx.fillStyle = i % 3 ? "#ffffff" : C.gold;
+      ctx.beginPath(); sparklePath(ctx, hx + Math.cos(ang) * rad, hy + Math.sin(ang) * rad * 0.8, 10 + 10 * tw); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    // bloom into milk white
+    const w = easeIn(seg(t, 27.4, 28.0));
+    if (w > 0) {
+      const rad = lerp(R_, 2400, w);
+      const gg = ctx.createRadialGradient(hx, hy, 0, hx, hy, rad);
+      gg.addColorStop(0, C.milk);
+      gg.addColorStop(0.7, C.milk);
+      gg.addColorStop(1, "rgba(255, 248, 240, 0)");
+      ctx.fillStyle = gg;
+      ctx.fillRect(0, 0, W, H);
+      if (w >= 1) { ctx.fillStyle = C.milk; ctx.fillRect(0, 0, W, H); }
+    }
+  }
+
+  function sceneEnd(t) {
+    milkBG();
+    const out = easeInBack(seg(t, 29.42, 29.95), 1.5);
+    const fade = 1 - seg(t, 29.5, 29.92);
+    const cx = 960, cy = 292;
+    const r = 192 * easeOutBack(seg(t, 28.0, 28.55), 1.8) * (1 - out);
+    if (r > 1) {
+      ctx.save();
+      ctx.shadowColor = "rgba(36, 70, 216, 0.25)";
+      ctx.shadowBlur = 40;
+      ctx.shadowOffsetY = 14;
+      ctx.fillStyle = "#fff";
+      ctx.beginPath(); ctx.arc(cx, cy, r + 12, 0, TAU); ctx.fill();
+      ctx.restore();
+      ctx.save();
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.clip();
+      const v = art({ x: cx - r, y: cy - r, w: r * 2, h: r * 2 }, { fx: 724, fy: 352, z: 1.45 }, { noClip: true });
+      eyeTwinkles(t, v, 0.8);
+      ctx.restore();
+      ctx.strokeStyle = C.royal; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(cx, cy, r + 24, 0, TAU); ctx.stroke();
+      ringText(cx, cy, r + 54, t, seg(t, 28.35, 28.75) * fade, C.royal);
+      sticker("moon", cx - r - 118, cy - r * 0.62, 110 * clamp(r / 192), -0.3 + Math.sin(t * 2) * 0.08, fade);
+      sticker("heart", cx + r + 116, cy + r * 0.55, 100 * clamp(r / 192), 0.25 + Math.sin(t * 2.3) * 0.08, fade);
+    }
+    const ta = fade;
+    drawTitle(TITLE_END, 960, 722, 132, t, 28.1, { stagger: 0.045, drop: 300, bob: 8, alpha: ta });
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    const l1 = easeOut(seg(t, 28.45, 28.8)) * ta;
+    ctx.globalAlpha = l1;
+    ctx.font = "400 40px " + F.pop;
+    ctx.fillStyle = "#ff5c9a";
+    ctx.fillText("ミルキーメルキー", 960, 796 + (1 - l1) * 12);
+    const l2 = easeOut(seg(t, 28.6, 28.95)) * ta;
+    ctx.globalAlpha = l2;
+    if ("letterSpacing" in ctx) ctx.letterSpacing = "10px";
+    ctx.font = "500 24px " + F.mono;
+    ctx.fillStyle = C.navy;
+    ctx.fillText("AMELUNA", 965, 604);
+    ctx.font = "300 36px " + F.wide;
+    ctx.fillStyle = C.royal;
+    if ("letterSpacing" in ctx) ctx.letterSpacing = "7px";
+    ctx.fillText("3rd Album  POLARIS DROP", 964, 880 + (1 - l2) * 10);
+    const l3 = easeOut(seg(t, 28.75, 29.05)) * ta;
+    ctx.globalAlpha = l3 * 0.75;
+    if ("letterSpacing" in ctx) ctx.letterSpacing = "5px";
+    ctx.font = "500 21px " + F.mono;
+    ctx.fillStyle = C.navy;
+    ctx.fillText("TRACK 03  ·  2026.09.28 RELEASE", 962, 934);
+    ctx.globalAlpha = l2 * 0.5;
+    ctx.fillStyle = C.royal;
+    const len = 90 * l2;
+    ctx.fillRect(960 - 400 - len, 868, len, 2);
+    ctx.fillRect(960 + 400, 868, len, 2);
+    ctx.restore();
+  }
+
+  // ---------- overlays ----------
+  function scrim(t) {
+    const a = Math.max(
+      window_(t, 3.3, 3.75, 7.2, 7.6),
+      window_(t, 14.9, 15.05, 22.3, 22.62),
+      window_(t, 26.1, 26.5, 27.4, 27.8)
+    );
+    if (a <= 0) return;
+    const g = ctx.createLinearGradient(0, H * 0.6, 0, H);
+    g.addColorStop(0, "rgba(16, 26, 85, 0)");
+    g.addColorStop(1, `rgba(16, 26, 85, ${0.62 * a})`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, H * 0.6, W, H * 0.4);
+  }
+  function floatersLayer(t) {
+    const a = t < 28.0 ? (inChorus(t) ? 1 : 0.55) * seg(t, 0.6, 1.2) : 0;
+    if (a <= 0) return;
+    for (const f of floaters) {
+      const u = ((f.y0 - f.n * t / DUR) % 1 + 1) % 1;
+      const y = -40 + u * (H + 80);
+      const x = f.x + Math.sin(TAU * f.n * t / DUR * 3 + f.p) * f.sway;
+      const edge = Math.min(1, u * 6, (1 - u) * 6);
+      const al = a * f.a * edge;
+      if (f.kind === "heart") drawBit("heart", x, y, f.r * 2.2, Math.sin(t + f.p) * 0.3, 1, "#ffffff", al * 0.8);
+      else if (f.kind === "spark") {
+        const tw = 0.4 + 0.6 * Math.abs(Math.sin(t * 2.2 + f.p));
+        drawBit("spark", x, y, f.r * 2 * tw, 0, 1, "#ffffff", al);
+      } else {
+        ctx.globalAlpha = al * 0.8;
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.arc(x, y, f.r, 0, TAU); ctx.stroke();
+        ctx.beginPath(); ctx.arc(x - f.r * 0.35, y - f.r * 0.35, f.r * 0.22, 0, TAU);
+        ctx.fillStyle = "#ffffff"; ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+    }
+  }
+  function pill(x, y, text, align, a, t, heart) {
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.font = "500 18px " + F.mono;
+    if ("letterSpacing" in ctx) ctx.letterSpacing = "4px";
+    const tw = ctx.measureText(text).width + (heart ? 34 : 0);
+    const w = tw + 40, h = 44;
+    const px = align === "right" ? x - w : x;
+    ctx.fillStyle = "rgba(255, 250, 244, 0.9)";
+    ctx.beginPath(); rr(ctx, px, y, w, h, h / 2); ctx.fill();
+    ctx.strokeStyle = "rgba(36, 70, 216, 0.25)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = C.navy;
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "left";
+    ctx.fillText(text, px + 20 + (heart ? 34 : 0), y + h / 2 + 1);
+    if (heart) {
+      ctx.fillStyle = "#ff5c9a";
+      ctx.beginPath(); heartPath(ctx, px + 32, y + h / 2 + 1, 22 * (1 + 0.3 * pulse(t, 8))); ctx.fill();
+    }
+    ctx.restore();
+  }
+  function chrome(t) {
+    const a = seg(t, 0.9, 1.4) * (1 - seg(t, 27.4, 27.8)) * (1 - 0.85 * window_(t, 14.9, 15.0, 15.6, 16.2));
+    if (a <= 0) return;
+    pill(58, 50, "AMELUNA", "left", a, t, false);
+    pill(W - 58, 50, "MILKY MELKY · TRACK 03", "right", a, t, true);
+  }
+  function frameBorder() {
+    ctx.save();
+    ctx.fillStyle = C.milk;
+    ctx.beginPath();
+    ctx.rect(0, 0, W, H);
+    rr(ctx, 22, 22, W - 44, H - 44, 38);
+    ctx.fill("evenodd");
+    ctx.restore();
+  }
+
+  // ---------- frame ----------
+  function render(t) {
+    ctx.save();
+    if (t < 3.75) sceneOpening(t);
+    else if (t < 7.5) sceneSmile(t);
+    else if (t < DROP) sceneCard(t);
+    else if (t < 18.4) sceneDrop(t);
+    else if (t < 22.5) {
+      // heart iris into the "spreading" shot
+      const hs = easeIn(seg(t, 18.4, 19.05)) * 3900;
+      if (hs < 3800) sceneDrop(t);
+      if (hs > 0) {
+        ctx.save();
+        ctx.beginPath(); heartPath(ctx, 960, 560, hs); ctx.clip();
+        sceneSweet(t);
+        ctx.restore();
+        if (hs < 3800) {
+          ctx.strokeStyle = "#ffffff";
+          ctx.lineWidth = 16;
+          ctx.beginPath(); heartPath(ctx, 960, 560, hs); ctx.stroke();
+          ctx.strokeStyle = C.pink;
+          ctx.lineWidth = 6;
+          ctx.beginPath(); heartPath(ctx, 960, 560, hs + 22); ctx.stroke();
+        }
+      }
+    }
+    else if (t < 26.5) scenePola(t);
+    else if (t < 28.0) sceneHeart(t);
+    else sceneEnd(t);
+
+    if (t >= 7.5 && t < DROP) buildUp(t);
+
+    // melting-curtain transitions
+    curtain(t, 7.5, C.pink);
+    curtain(t, 22.5, "#8fd0ff");
+
+    scrim(t);
+    floatersLayer(t);
+    if (t >= DROP && t < 18.9) {
+      drawTitle(TITLE_BIG, 960, 792, 208, t, DROP + 0.02, { meltAt: 18.05 });
+      drawConfetti(t);
+    }
+    for (const L of LYRICS) drawLyric(L, t);
+
+    // white flash on the drop
+    const fl = 1 - easeOut(seg(t, DROP, DROP + 0.55));
+    if (t >= DROP && fl > 0) {
+      ctx.fillStyle = `rgba(255, 250, 244, ${fl})`;
+      ctx.fillRect(0, 0, W, H);
+    }
+    chrome(t);
+    frameBorder();
+    ctx.restore();
+  }
+
+  // ---------- sizing ----------
+  let scale = 1;
+  let exporting = false;
+  function resize() {
+    if (exporting) return;
+    const rect = canvas.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.max(320, Math.min(W, Math.round(rect.width * dpr)));
+    canvas.width = w;
+    canvas.height = Math.round(w * H / W);
+    scale = canvas.width / W;
+  }
+
+  // ---------- playback ----------
+  const playBtn = document.getElementById("play");
+  const seek = document.getElementById("seek");
+  const nowEl = document.getElementById("now");
+  const iconPlay = document.getElementById("icon-play");
+  const iconPause = document.getElementById("icon-pause");
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  let t = reduced ? 16.6 : 0;
+  let playing = !reduced;
+  let last = performance.now();
+  let scrubbing = false;
+
+  // ---------- sound: the 30 s clip, looped sample-accurately and used as the master clock ----------
+  const clipB64 = document.getElementById("clip").textContent.trim();
+  const hasAudio = clipB64.length > 0 && !clipB64.startsWith("__");
+  const soundBtn = document.getElementById("sound");
+  const soundHint = document.getElementById("sound-hint");
+  let actx = null, buffer = null, src = null, gainNode = null, soundOn = false, audioT0 = 0;
+
+  function stopSource() {
+    if (!src) return;
+    try { src.stop(); } catch (e) { /* already stopped */ }
+    src.disconnect();
+    src = null;
+  }
+  function syncAudio() {
+    stopSource();
+    if (!soundOn || !playing || scrubbing || exporting || !buffer) return;
+    src = actx.createBufferSource();
+    src.buffer = buffer;
+    src.loop = true;
+    src.loopStart = 0;
+    src.loopEnd = Math.min(DUR, buffer.duration);
+    src.connect(gainNode);
+    audioT0 = actx.currentTime + 0.03 - t;
+    src.start(actx.currentTime + 0.03, t % DUR);
+  }
+  async function setSound(on) {
+    if (on) {
+      try {
+        actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+        await actx.resume();
+        if (!buffer) {
+          const bin = atob(clipB64), bytes = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          buffer = await actx.decodeAudioData(bytes.buffer);
+          gainNode = actx.createGain();
+          gainNode.connect(actx.destination);
+        }
+      } catch (e) {
+        soundHint.textContent = "この環境では音声を再生できません";
+        return;
+      }
+    }
+    soundOn = on;
+    soundHint.hidden = true;
+    document.getElementById("icon-muted").hidden = on;
+    document.getElementById("icon-sound").hidden = !on;
+    soundBtn.setAttribute("aria-label", on ? "音声をオフにする" : "音声をオンにする");
+    syncAudio();
+  }
+  if (hasAudio) {
+    soundBtn.hidden = false;
+    soundHint.hidden = false;
+    soundBtn.addEventListener("click", () => setSound(!soundOn));
+    soundHint.addEventListener("click", async () => {
+      t = 0;                                   // from the top, so the pre-chorus builds into the drop
+      playing = true;
+      await setSound(true);
+      setPlaying(true);
+    });
+  }
+
+  function setPlaying(p) {
+    playing = p;
+    iconPlay.hidden = p;
+    iconPause.hidden = !p;
+    playBtn.setAttribute("aria-label", p ? "一時停止" : "再生");
+    last = performance.now();
+    if (hasAudio) syncAudio();
+  }
+  playBtn.addEventListener("click", () => setPlaying(!playing));
+  seek.addEventListener("input", () => { scrubbing = true; t = parseFloat(seek.value); stopSource(); });
+  seek.addEventListener("change", () => { scrubbing = false; last = performance.now(); if (hasAudio) syncAudio(); });
+  document.addEventListener("keydown", e => {
+    if (e.code === "Space" && e.target.tagName !== "BUTTON" && e.target.tagName !== "INPUT") {
+      e.preventDefault();
+      setPlaying(!playing);
+    }
+  });
+  document.getElementById("fs").addEventListener("click", () => {
+    const f = document.getElementById("frame");
+    if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+    else f.requestFullscreen?.().catch(() => {});
+  });
+
+  function tick(now) {
+    if (exporting) return;
+    const dt = Math.min(0.1, (now - last) / 1000);
+    last = now;
+    if (src && playing && !scrubbing) t = (actx.currentTime - audioT0) % DUR;   // follow the audio clock
+    else if (playing && !scrubbing) t = (t + dt) % DUR;
+    if (t < 0) t += DUR;
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    render(t);
+    if (!scrubbing) seek.value = t.toFixed(2);
+    nowEl.textContent = t.toFixed(1).padStart(4, "0");
+    requestAnimationFrame(tick);
+  }
+
+  async function start() {
+    if (!illust.complete || !illust.naturalWidth) {
+      await new Promise(res => { illust.onload = res; illust.onerror = res; });
+    }
+    IW = illust.naturalWidth || IW;
+    IH = illust.naturalHeight || IH;
+    const allJP = LYRICS.map(l => l.jp).join("") + "ミルキーメルキー";
+    try {
+      await Promise.race([
+        Promise.all([
+          document.fonts.load(`900 ${LY_SIZE}px "Zen Maru Gothic"`, allJP),
+          document.fonts.load('700 200px "DynaPuff"', "Milky MelkyMILKY03"),
+          document.fonts.load('400 40px "Mochiy Pop One"', "ミルキーメルキー"),
+          document.fonts.load('300 36px "Unbounded"', "3rd Album POLARIS DROP"),
+          document.fonts.load('500 20px "DM Mono"', "AMELUNA TRACK 03 · 2026.09.28 RELEASE ✦")
+        ]),
+        new Promise(res => setTimeout(res, 3000))
+      ]);
+    } catch (e) { /* fall back to system faces */ }
+    buildStickers();
+    buildMarquee();
+    layoutLyrics();
+    TITLE_BIG = titleLayout("Milky Melky", 208);
+    TITLE_END = titleLayout("Milky Melky", 132);
+    resize();
+    window.addEventListener("resize", resize);
+    document.addEventListener("fullscreenchange", () => setTimeout(resize, 50));
+    setPlaying(playing);
+    requestAnimationFrame(tick);
+  }
+  // Offline frame renderer (same contract as the POLARIS DROP teaser exporter).
+  window.polarisExport = {
+    width: W, height: H, duration: DUR,
+    ready: start(),
+    renderAt(time) {
+      exporting = true;
+      stopSource();
+      if (canvas.width !== W) { canvas.width = W; canvas.height = H; }
+      scale = 1;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      render(((time % DUR) + DUR) % DUR);
+      return canvas.toDataURL("image/png");
+    }
+  };
+})();
+</script>
