@@ -1,0 +1,599 @@
+<title>POLARIS DROP Teaser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400&family=Unbounded:wght@300;400&display=swap">
+<style>
+  :root {
+    color-scheme: dark;
+    --stage: #060a22;
+    --navy: #0e1a4d;
+    --royal: #1f4fc4;
+    --cyan: #19aef2;
+    --pink: #f06aa8;
+    --cream: #f7eee0;
+    --muted: #8e9ccc;
+    --line: rgba(247, 238, 224, 0.14);
+  }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body {
+    background: var(--stage);
+    color: var(--cream);
+    font-family: "DM Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding-inline: 16px;
+    padding-block: 16px;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  .frame {
+    position: relative;
+    height: min(calc(100% - 64px), calc((100vw - 32px) * 16 / 9));
+    aspect-ratio: 9 / 16;
+    max-width: 100%;
+    background: var(--navy);
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--line);
+  }
+  canvas { display: block; width: 100%; height: 100%; }
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: min(100%, 460px);
+    font-size: 12px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  button {
+    appearance: none;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--cream);
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    flex: none;
+  }
+  button:hover { border-color: rgba(247, 238, 224, 0.4); }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+  button svg { width: 14px; height: 14px; fill: currentColor; }
+  input[type="range"] {
+    flex: 1;
+    min-width: 0;
+    accent-color: var(--cyan);
+    height: 18px;
+    background: transparent;
+  }
+  .time { width: 9.5ch; text-align: right; letter-spacing: 0.04em; }
+  .time b { color: var(--cream); font-weight: 400; }
+</style>
+
+<div class="frame" id="frame">
+  <canvas id="stage" aria-label="POLARIS DROP 告知モーション（15秒ループ）" role="img"></canvas>
+</div>
+<div class="controls">
+  <button id="play" type="button" aria-label="一時停止">
+    <svg id="icon-pause" viewBox="0 0 14 14"><rect x="2" y="1" width="3.5" height="12" rx="1"/><rect x="8.5" y="1" width="3.5" height="12" rx="1"/></svg>
+    <svg id="icon-play" viewBox="0 0 14 14" hidden><path d="M3 1.2v11.6c0 .6.7 1 1.2.6l8.4-5.8c.4-.3.4-.9 0-1.2L4.2.6C3.7.2 3 .6 3 1.2z"/></svg>
+  </button>
+  <input id="seek" type="range" min="0" max="15" step="0.01" value="0" aria-label="再生位置">
+  <span class="time"><b id="now">00.0</b> / 15.0</span>
+  <button id="fs" type="button" aria-label="全画面表示">
+    <svg viewBox="0 0 14 14"><path d="M1 5V1h4v1.6H2.6V5zM9 1h4v4h-1.6V2.6H9zM13 9v4H9v-1.6h2.4V9zM5 13H1V9h1.6v2.4H5z"/></svg>
+  </button>
+</div>
+
+<img id="jacket" alt="" hidden src="__JACKET__">
+
+<script>
+(() => {
+  const W = 1080, H = 1920, DUR = 15;
+  const C = {
+    navy: "#0e1a4d", deep: "#081238", royal: "#1f4fc4",
+    cyan: "#19aef2", pink: "#f06aa8", cream: "#f7eee0"
+  };
+  const CARD = { x: 540, y: 790, s: 900 };
+  const LAND = { x: 540, y: 1372 };
+  const POLARIS = { x: 820, y: 178 };
+
+  const canvas = document.getElementById("stage");
+  const ctx = canvas.getContext("2d");
+  const jacket = document.getElementById("jacket");
+
+  // ---------- helpers ----------
+  const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const seg = (t, a, b) => clamp((t - a) / (b - a));
+  const easeOut = t => 1 - Math.pow(1 - t, 3);
+  const easeInOut = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  const sine = t => 0.5 - 0.5 * Math.cos(Math.PI * t);
+  const TAU = Math.PI * 2;
+  const frac = v => v - Math.floor(v);
+  function rng(seed) {
+    return () => {
+      seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+      let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function makeCanvas(w, h) {
+    const c = document.createElement("canvas");
+    c.width = w; c.height = h;
+    return c;
+  }
+
+  // soft glow sprites, one per tint
+  function glowSprite(color, size = 128) {
+    const c = makeCanvas(size, size), g = c.getContext("2d");
+    const r = size / 2;
+    const grd = g.createRadialGradient(r, r, 0, r, r, r);
+    grd.addColorStop(0, color);
+    grd.addColorStop(0.25, color + "aa");
+    grd.addColorStop(1, color + "00");
+    g.fillStyle = grd;
+    g.fillRect(0, 0, size, size);
+    return c;
+  }
+  const GLOW = {
+    cream: glowSprite(C.cream),
+    cyan: glowSprite(C.cyan),
+    pink: glowSprite(C.pink)
+  };
+
+  // ---------- particle fields (every motion is periodic in DUR, so the loop is seamless) ----------
+  const R = rng(20260927);
+  const stars = Array.from({ length: 150 }, () => ({
+    x: R() * W, y: R() * H, r: 0.6 + R() * 1.7,
+    a: 0.25 + R() * 0.6, k: 1 + Math.floor(R() * 4), p: R() * TAU
+  }));
+  const motes = Array.from({ length: 80 }, () => {
+    const n = 1 + Math.floor(R() * 3);
+    return {
+      x: R() * W, y: 200 + R() * (H - 300), n, off: R(),
+      drift: 40 + R() * 70, sway: 6 + R() * 14, r: 5 + R() * 11,
+      tint: R() < 0.55 ? "cream" : (R() < 0.7 ? "cyan" : "pink"),
+      a: 0.25 + R() * 0.45, depth: R() < 0.5 ? 0.8 : 1.35
+    };
+  });
+  const bokeh = Array.from({ length: 11 }, () => ({
+    x: R() * W, y: R() * H, r: 60 + R() * 120, orbit: 25 + R() * 40,
+    p: R() * TAU, dir: R() < 0.5 ? 1 : -1,
+    tint: ["cyan", "pink", "cream", "cyan"][Math.floor(R() * 4)],
+    a: 0.05 + R() * 0.07
+  }));
+  const drops = Array.from({ length: 18 }, (_, i) => ({
+    x: 40 + R() * (W - 80), y0: R(), s: 9 + R() * 12,
+    k: 1, tint: R() < 0.72 ? C.pink : C.cyan,
+    a: 0.22 + R() * 0.3, depth: i < 13 ? 0.6 : 1.5
+  }));
+
+  // ---------- pre-rendered assets ----------
+  let cardArt, blurArt, cardShadow;
+  function prepare() {
+    cardArt = makeCanvas(1000, 1000);
+    const cg = cardArt.getContext("2d");
+    cg.imageSmoothingQuality = "high";
+    cg.drawImage(jacket, 0, 0, 1000, 1000);
+
+    // cheap, cross-browser blur: shrink hard then scale back up in two passes
+    const tiny = makeCanvas(40, 40);
+    tiny.getContext("2d").drawImage(jacket, 0, 0, 40, 40);
+    blurArt = makeCanvas(160, 160);
+    const bg = blurArt.getContext("2d");
+    bg.imageSmoothingQuality = "high";
+    bg.drawImage(tiny, 0, 0, 160, 160);
+
+    cardShadow = makeCanvas(1300, 1300);
+    const sg = cardShadow.getContext("2d");
+    sg.shadowColor = "rgba(2, 5, 25, 0.75)";
+    sg.shadowBlur = 90;
+    sg.shadowOffsetY = 40;
+    sg.fillStyle = "#050a24";
+    sg.fillRect(200, 200, 900, 900);
+  }
+
+  // ---------- camera ----------
+  const pointer = { x: 0, y: 0, tx: 0, ty: 0 };
+  function camera(t) {
+    const u = t / DUR;
+    return {
+      zoom: 1 + 0.085 * sine(u),              // slow push-in across the whole loop
+      dx: 16 * Math.sin(TAU * u) + pointer.x * 22,
+      dy: 10 * Math.sin(TAU * u * 2) * 0.5 + pointer.y * 16
+    };
+  }
+  function layer(cam, depth, fn) {
+    ctx.save();
+    const z = 1 + (cam.zoom - 1) * depth;
+    ctx.translate(W / 2, H / 2);
+    ctx.scale(z, z);
+    ctx.translate(-W / 2 + cam.dx * depth, -H / 2 + cam.dy * depth);
+    fn();
+    ctx.restore();
+  }
+
+  // ---------- drawing pieces ----------
+  function star4(x, y, r, color, alpha) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x, y - r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.quadraticCurveTo(x, y, x, y + r);
+    ctx.quadraticCurveTo(x, y, x - r, y);
+    ctx.quadraticCurveTo(x, y, x, y - r);
+    ctx.fill();
+    ctx.restore();
+  }
+  function glow(x, y, r, tint, alpha) {
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(GLOW[tint], x - r, y - r, r * 2, r * 2);
+    ctx.globalAlpha = 1;
+  }
+  function teardrop(x, y, s, color, alpha) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x, y - s * 1.5);
+    ctx.bezierCurveTo(x + s * 0.35, y - s * 0.7, x + s, y - s * 0.1, x + s, y + s * 0.35);
+    ctx.arc(x, y + s * 0.35, s, 0, Math.PI);
+    ctx.bezierCurveTo(x - s, y - s * 0.1, x - s * 0.35, y - s * 0.7, x, y - s * 1.5);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawBackground(t, cam) {
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, C.deep);
+    g.addColorStop(0.45, C.navy);
+    g.addColorStop(1, "#070e30");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    // ambient colour bleeding out of the jacket
+    layer(cam, 0.35, () => {
+      ctx.globalAlpha = 0.5;
+      const S = 2800;
+      ctx.drawImage(blurArt, CARD.x - S / 2, CARD.y - S / 2, S, S);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = "rgba(10, 20, 64, 0.62)";
+      ctx.fillRect(-200, -200, W + 400, H + 400);
+    });
+
+    // far stars
+    layer(cam, 0.45, () => {
+      const u = t / DUR;
+      ctx.fillStyle = C.cream;
+      for (const s of stars) {
+        ctx.globalAlpha = s.a * (0.55 + 0.45 * Math.sin(TAU * s.k * u + s.p));
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, TAU);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  function drawDrops(t, cam, depthFilter) {
+    const u = t / DUR;
+    for (const d of drops) {
+      if (depthFilter(d.depth) === false) continue;
+      layer(cam, d.depth, () => {
+        const y = frac(d.y0 + d.k * u) * (H + 240) - 120;
+        teardrop(d.x, y, d.s, d.tint, d.a * (d.depth > 1 ? 0.55 : 1));
+      });
+    }
+  }
+
+  function drawPolaris(t, cam) {
+    layer(cam, 0.55, () => {
+      const tw = 0.85 + 0.15 * Math.sin(TAU * 3 * t / DUR);
+      glow(POLARIS.x, POLARIS.y, 70, "cyan", 0.35 * tw);
+      glow(POLARIS.x, POLARIS.y, 34, "cream", 0.8 * tw);
+      star4(POLARIS.x, POLARIS.y, 26 * tw, C.cream, 0.95);
+    });
+  }
+
+  function drawCard(t, cam) {
+    layer(cam, 1, () => {
+      const half = CARD.s / 2;
+      const x = CARD.x - half, y = CARD.y - half;
+      ctx.drawImage(cardShadow, x - 200, y - 200, 1300, 1300);
+      ctx.drawImage(cardArt, x, y, CARD.s, CARD.s);
+
+      // a single slow light sweep across the sleeve
+      const sw = seg(t, 1.8, 4.6);
+      if (sw > 0 && sw < 1) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x, y, CARD.s, CARD.s);
+        ctx.clip();
+        const p = lerp(-0.5, 1.5, easeInOut(sw));
+        const cx = x + CARD.s * p;
+        const g = ctx.createLinearGradient(cx - 260, y, cx + 260, y + CARD.s * 0.35);
+        g.addColorStop(0, "rgba(255,255,255,0)");
+        g.addColorStop(0.5, "rgba(255,250,240,0.16)");
+        g.addColorStop(1, "rgba(255,255,255,0)");
+        ctx.globalCompositeOperation = "lighter";
+        ctx.fillStyle = g;
+        ctx.fillRect(x, y, CARD.s, CARD.s);
+        ctx.restore();
+      }
+
+      ctx.strokeStyle = "rgba(247, 238, 224, 0.12)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x + 1, y + 1, CARD.s - 2, CARD.s - 2);
+    });
+  }
+
+  function drawMotes(t, cam, depthWanted) {
+    layer(cam, depthWanted, () => {
+      for (const m of motes) {
+        if (m.depth !== depthWanted) continue;
+        const P = DUR / m.n;
+        const life = frac(t / P + m.off);
+        const a = Math.pow(Math.sin(Math.PI * life), 1.6) * m.a;
+        const x = m.x + m.sway * Math.sin(TAU * life + m.off * 6);
+        const y = m.y - m.drift * life;
+        glow(x, y, m.r, m.tint, a);
+      }
+    });
+  }
+
+  function drawBokeh(t, cam) {
+    layer(cam, 1.7, () => {
+      const u = t / DUR;
+      for (const b of bokeh) {
+        const ang = b.p + TAU * u * b.dir;
+        glow(b.x + Math.cos(ang) * b.orbit, b.y + Math.sin(ang) * b.orbit, b.r, b.tint, b.a);
+      }
+    });
+  }
+
+  // the drop: a spark leaves Polaris, falls, and lands where the title will appear
+  const FALL_A = 3.3, FALL_B = 5.0;
+  function fallPos(t) {
+    const k = seg(t, FALL_A, FALL_B);
+    const e = k * k;                                    // accelerates like a real drop
+    const x = lerp(POLARIS.x, LAND.x, easeOut(k));
+    const y = lerp(POLARIS.y, LAND.y, e);
+    return { x, y };
+  }
+  function drawDrop(t, cam, textAlpha) {
+    layer(cam, 1.0, () => {
+      if (t > FALL_A && t < FALL_B) {
+        for (let j = 18; j >= 0; j--) {
+          const tt = t - j * 0.018;
+          if (tt < FALL_A) continue;
+          const p = fallPos(tt);
+          glow(p.x, p.y, 16 - j * 0.6, "cream", 0.5 * (1 - j / 19));
+        }
+        const p = fallPos(t);
+        glow(p.x, p.y, 46, "cyan", 0.5);
+        star4(p.x, p.y, 16, C.cream, 1);
+      }
+
+      // ripples on landing
+      for (let i = 0; i < 3; i++) {
+        const k = seg(t, FALL_B + i * 0.28, FALL_B + 2.4 + i * 0.28);
+        if (k <= 0 || k >= 1) continue;
+        const rx = 30 + 330 * easeOut(k);
+        ctx.save();
+        ctx.globalAlpha = (1 - k) * 0.55 * (1 - i * 0.25);
+        ctx.strokeStyle = i === 1 ? C.cyan : C.cream;
+        ctx.lineWidth = 2.2 - k * 1.2;
+        ctx.beginPath();
+        ctx.ellipse(LAND.x, LAND.y, rx, rx * 0.16, 0, 0, TAU);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // the settled star above the title
+      const settle = easeOut(seg(t, FALL_B, FALL_B + 0.6)) * textAlpha;
+      if (settle > 0) {
+        const pulse = 0.9 + 0.1 * Math.sin(TAU * 2 * t / DUR * 3);
+        glow(LAND.x, LAND.y, 60, "cyan", 0.32 * settle);
+        glow(LAND.x, LAND.y, 26, "cream", 0.75 * settle);
+        star4(LAND.x, LAND.y, 17 * pulse, C.cream, settle);
+      }
+    });
+  }
+
+  function trackedText(str, cx, y, tracking, charAlpha, charLift) {
+    const widths = [...str].map(ch => ctx.measureText(ch).width);
+    const total = widths.reduce((a, b) => a + b, 0) + tracking * (str.length - 1);
+    let x = cx - total / 2;
+    [...str].forEach((ch, i) => {
+      const a = charAlpha(i);
+      if (a > 0.001) {
+        ctx.globalAlpha = a;
+        ctx.fillText(ch, x, y + charLift(i));
+      }
+      x += widths[i] + tracking;
+    });
+    ctx.globalAlpha = 1;
+  }
+
+  function drawType(t, cam, textAlpha) {
+    if (textAlpha <= 0) return;
+    layer(cam, 0.4, () => {
+      ctx.textBaseline = "alphabetic";
+      ctx.textAlign = "left";
+
+      // title: letters surface one by one while the spacing slowly settles
+      const T0 = 5.25;
+      const title = "POLARIS DROP";
+      ctx.font = '300 84px "Unbounded", "Futura", "Helvetica Neue", sans-serif';
+      const settle = easeOut(seg(t, T0, T0 + 4.2));
+      const tracking = lerp(46, 22, settle);
+      const charT = i => easeOut(seg(t, T0 + i * 0.1, T0 + i * 0.1 + 1.5));
+      ctx.save();
+      ctx.shadowColor = "rgba(25, 174, 242, 0.55)";
+      ctx.shadowBlur = 28;
+      ctx.fillStyle = C.cream;
+      trackedText(title, W / 2, 1506,
+        tracking,
+        i => charT(i) * textAlpha,
+        i => (1 - charT(i)) * 22);
+      ctx.restore();
+
+      // artist
+      const art = easeOut(seg(t, 7.3, 8.9)) * textAlpha;
+      ctx.font = '400 30px "DM Mono", ui-monospace, monospace';
+      ctx.fillStyle = C.cream;
+      trackedText("Ameluna", W / 2, 1580, 12, () => art * 0.85, () => (1 - art) * 10);
+
+      // footer
+      const foot = easeOut(seg(t, 8.4, 10.2)) * textAlpha;
+      if (foot > 0) {
+        ctx.font = '400 22px "DM Mono", ui-monospace, monospace';
+        ctx.fillStyle = "#a9b6e4";
+        trackedText("NEW ALBUM", W / 2, 1790, 9, () => foot * 0.8, () => 0);
+        ctx.globalAlpha = foot * 0.45;
+        ctx.fillStyle = "#a9b6e4";
+        const len = 120 * foot;
+        ctx.fillRect(W / 2 - 150 - len, 1782, len, 1.5);
+        ctx.fillRect(W / 2 + 150, 1782, len, 1.5);
+        ctx.globalAlpha = 1;
+      }
+    });
+  }
+
+  function drawVignette() {
+    const g = ctx.createRadialGradient(W / 2, H * 0.45, H * 0.28, W / 2, H * 0.5, H * 0.78);
+    g.addColorStop(0, "rgba(4, 8, 30, 0)");
+    g.addColorStop(1, "rgba(4, 8, 30, 0.6)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // ---------- frame ----------
+  function render(t) {
+    const cam = camera(t);
+    const textAlpha = 1 - sine(seg(t, 12.9, 14.2));
+
+    ctx.save();
+    drawBackground(t, cam);
+    drawPolaris(t, cam);
+    drawDrops(t, cam, d => d < 1);
+    drawMotes(t, cam, 0.8);
+    drawCard(t, cam);
+    drawMotes(t, cam, 1.35);
+    drawDrops(t, cam, d => d > 1);
+    drawDrop(t, cam, textAlpha);
+    drawType(t, cam, textAlpha);
+    drawBokeh(t, cam);
+    drawVignette();
+
+    // dip through navy at the loop seam
+    const dip = t < 1.2 ? 1 - sine(t / 1.2) : sine(seg(t, 14.15, 15));
+    if (dip > 0) {
+      ctx.fillStyle = `rgba(8, 14, 44, ${dip})`;
+      ctx.fillRect(0, 0, W, H);
+    }
+    ctx.restore();
+  }
+
+  // ---------- sizing ----------
+  let scale = 1;
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.min(W, Math.round(rect.width * dpr));
+    canvas.width = w;
+    canvas.height = Math.round(w * H / W);
+    scale = canvas.width / W;
+  }
+
+  // ---------- playback ----------
+  const playBtn = document.getElementById("play");
+  const seek = document.getElementById("seek");
+  const nowEl = document.getElementById("now");
+  const iconPlay = document.getElementById("icon-play");
+  const iconPause = document.getElementById("icon-pause");
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  let t = reduced ? 9.5 : 0;
+  let playing = !reduced;
+  let last = performance.now();
+  let scrubbing = false;
+
+  function setPlaying(p) {
+    playing = p;
+    iconPlay.hidden = p;
+    iconPause.hidden = !p;
+    playBtn.setAttribute("aria-label", p ? "一時停止" : "再生");
+    last = performance.now();
+  }
+  playBtn.addEventListener("click", () => setPlaying(!playing));
+  seek.addEventListener("input", () => { scrubbing = true; t = parseFloat(seek.value); });
+  seek.addEventListener("change", () => { scrubbing = false; last = performance.now(); });
+  document.addEventListener("keydown", e => {
+    if (e.code === "Space" && e.target.tagName !== "BUTTON" && e.target.tagName !== "INPUT") {
+      e.preventDefault();
+      setPlaying(!playing);
+    }
+  });
+  document.getElementById("fs").addEventListener("click", () => {
+    const f = document.getElementById("frame");
+    if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+    else f.requestFullscreen?.().catch(() => {});
+  });
+
+  const frameEl = document.getElementById("frame");
+  frameEl.addEventListener("pointermove", e => {
+    if (reduced) return;
+    const r = frameEl.getBoundingClientRect();
+    pointer.tx = ((e.clientX - r.left) / r.width - 0.5) * 2;
+    pointer.ty = ((e.clientY - r.top) / r.height - 0.5) * 2;
+  });
+  frameEl.addEventListener("pointerleave", () => { pointer.tx = 0; pointer.ty = 0; });
+
+  function tick(now) {
+    const dt = Math.min(0.1, (now - last) / 1000);
+    last = now;
+    if (playing && !scrubbing) t = (t + dt) % DUR;
+    pointer.x += (pointer.tx - pointer.x) * 0.04;
+    pointer.y += (pointer.ty - pointer.y) * 0.04;
+
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    render(t);
+    if (!scrubbing) seek.value = t.toFixed(2);
+    nowEl.textContent = t.toFixed(1).padStart(4, "0");
+    requestAnimationFrame(tick);
+  }
+
+  async function start() {
+    if (!jacket.complete || !jacket.naturalWidth) {
+      await new Promise(res => { jacket.onload = res; jacket.onerror = res; });
+    }
+    try {
+      await Promise.race([
+        Promise.all([
+          document.fonts.load('300 84px "Unbounded"'),
+          document.fonts.load('400 30px "DM Mono"')
+        ]),
+        new Promise(res => setTimeout(res, 2500))
+      ]);
+    } catch (e) { /* fall back to system faces */ }
+    prepare();
+    resize();
+    window.addEventListener("resize", resize);
+    setPlaying(playing);
+    requestAnimationFrame(tick);
+  }
+  start();
+})();
+</script>
