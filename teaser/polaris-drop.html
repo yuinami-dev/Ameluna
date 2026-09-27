@@ -603,7 +603,9 @@
 
   // ---------- sizing ----------
   let scale = 1;
+  let exporting = false;
   function resize() {
+    if (exporting) return;
     const rect = canvas.getBoundingClientRect();
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const w = Math.min(W, Math.round(rect.width * dpr));
@@ -657,6 +659,7 @@
   frameEl.addEventListener("pointerleave", () => { pointer.tx = 0; pointer.ty = 0; });
 
   function tick(now) {
+    if (exporting) return;               // export/export.mjs drives frames itself
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
     if (playing && !scrubbing) t = (t + dt) % DUR;
@@ -691,6 +694,20 @@
     setPlaying(playing);
     requestAnimationFrame(tick);
   }
-  start();
+  // Offline frame renderer used by export/export.mjs (MP4 export).
+  // Stops the live loop and draws time t at the native 1080x1920.
+  window.polarisExport = {
+    width: W, height: H, duration: DUR,
+    ready: start(),
+    renderAt(time) {
+      exporting = true;
+      if (canvas.width !== W) { canvas.width = W; canvas.height = H; }
+      scale = 1;
+      pointer.x = pointer.y = pointer.tx = pointer.ty = 0;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      render(((time % DUR) + DUR) % DUR);
+      return canvas.toDataURL("image/png");
+    }
+  };
 })();
 </script>

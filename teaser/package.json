@@ -1,0 +1,14 @@
+{
+  "name": "polaris-drop-teaser",
+  "private": true,
+  "description": "Ameluna 3rd Album POLARIS DROP 9:16 teaser: browser prototype and MP4 export",
+  "scripts": {
+    "build": "python3 build.py",
+    "export": "python3 build.py && node export/export.cjs",
+    "export:loop2": "python3 build.py && node export/export.cjs --loops 2 --out dist/polaris-drop_1080x1920_30s.mp4"
+  },
+  "devDependencies": {
+    "ffmpeg-static": "^5.2.0",
+    "playwright": "^1.56.1"
+  }
+}
