@@ -73,12 +73,39 @@
     height: 18px;
     background: transparent;
   }
+  .sound-hint {
+    position: absolute;
+    left: 50%;
+    top: 4%;
+    transform: translateX(-50%);
+    width: auto;
+    height: auto;
+    border-radius: 999px;
+    padding: 9px 18px 9px 14px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font: 400 12px/1 "DM Mono", ui-monospace, monospace;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+    color: var(--cream);
+    background: rgba(8, 14, 44, 0.55);
+    border-color: rgba(230, 210, 164, 0.45);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: opacity 0.4s;
+  }
+  .sound-hint:hover { background: rgba(8, 14, 44, 0.75); border-color: rgba(230, 210, 164, 0.8); }
   .time { width: 9.5ch; text-align: right; letter-spacing: 0.04em; }
   .time b { color: var(--cream); font-weight: 400; }
 </style>
 
 <div class="frame" id="frame">
   <canvas id="stage" aria-label="Ameluna 3rd Album POLARIS DROP 2026.09.28 リリース告知モーション（15秒ループ）" role="img"></canvas>
+  <button id="sound-hint" class="sound-hint" type="button" hidden>
+    <svg viewBox="0 0 14 14"><path d="M1 5h2.6L7 2v10L3.6 9H1zM9.2 4.4a3.6 3.6 0 0 1 0 5.2l-.9-.9a2.3 2.3 0 0 0 0-3.4zM11 2.6a6.2 6.2 0 0 1 0 8.8l-.9-.9a4.9 4.9 0 0 0 0-7z"/></svg>
+    音ありで再生
+  </button>
 </div>
 <div class="controls">
   <button id="play" type="button" aria-label="一時停止">
@@ -87,12 +114,17 @@
   </button>
   <input id="seek" type="range" min="0" max="15" step="0.01" value="0" aria-label="再生位置">
   <span class="time"><b id="now">00.0</b> / 15.0</span>
+  <button id="sound" type="button" aria-label="音声をオンにする" hidden>
+    <svg id="icon-muted" viewBox="0 0 14 14"><path d="M1 5h2.6L7 2v10L3.6 9H1zM9 5.1l.9-.9L11.2 5.5l1.3-1.3.9.9-1.3 1.3 1.3 1.3-.9.9-1.3-1.3-1.3 1.3-.9-.9 1.3-1.3z"/></svg>
+    <svg id="icon-sound" viewBox="0 0 14 14" hidden><path d="M1 5h2.6L7 2v10L3.6 9H1zM9.2 4.4a3.6 3.6 0 0 1 0 5.2l-.9-.9a2.3 2.3 0 0 0 0-3.4zM11 2.6a6.2 6.2 0 0 1 0 8.8l-.9-.9a4.9 4.9 0 0 0 0-7z"/></svg>
+  </button>
   <button id="fs" type="button" aria-label="全画面表示">
     <svg viewBox="0 0 14 14"><path d="M1 5V1h4v1.6H2.6V5zM9 1h4v4h-1.6V2.6H9zM13 9v4H9v-1.6h2.4V9zM5 13H1V9h1.6v2.4H5z"/></svg>
   </button>
 </div>
 
 <img id="jacket" alt="" hidden src="__JACKET__">
+<script type="text/plain" id="chorus">__CHORUS__</script>
 
 <script>
 (() => {
@@ -627,16 +659,79 @@
   let last = performance.now();
   let scrubbing = false;
 
+  // ---------- sound: 15 s chorus clip, looped sample-accurately and used as the master clock ----------
+  // The clip is cut so the chorus hit lands at t = 5.0 s, when the falling star touches down.
+  const chorusB64 = document.getElementById("chorus").textContent.trim();
+  const hasAudio = chorusB64.length > 0 && !chorusB64.startsWith("__");
+  const soundBtn = document.getElementById("sound");
+  const soundHint = document.getElementById("sound-hint");
+  let actx = null, buffer = null, src = null, gainNode = null, soundOn = false, audioT0 = 0;
+
+  function stopSource() {
+    if (!src) return;
+    try { src.stop(); } catch (e) { /* already stopped */ }
+    src.disconnect();
+    src = null;
+  }
+  function syncAudio() {
+    stopSource();
+    if (!soundOn || !playing || scrubbing || exporting || !buffer) return;
+    src = actx.createBufferSource();
+    src.buffer = buffer;
+    src.loop = true;
+    src.loopStart = 0;
+    src.loopEnd = Math.min(DUR, buffer.duration);
+    src.connect(gainNode);
+    audioT0 = actx.currentTime + 0.03 - t;
+    src.start(actx.currentTime + 0.03, t % DUR);
+  }
+  async function setSound(on) {
+    if (on) {
+      try {
+        actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+        await actx.resume();
+        if (!buffer) {
+          const bin = atob(chorusB64), bytes = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          buffer = await actx.decodeAudioData(bytes.buffer);
+          gainNode = actx.createGain();
+          gainNode.connect(actx.destination);
+        }
+      } catch (e) {
+        soundHint.textContent = "この環境では音声を再生できません";
+        return;
+      }
+    }
+    soundOn = on;
+    soundHint.hidden = true;
+    document.getElementById("icon-muted").hidden = on;
+    document.getElementById("icon-sound").hidden = !on;
+    soundBtn.setAttribute("aria-label", on ? "音声をオフにする" : "音声をオンにする");
+    syncAudio();
+  }
+  if (hasAudio) {
+    soundBtn.hidden = false;
+    soundHint.hidden = false;
+    soundBtn.addEventListener("click", () => setSound(!soundOn));
+    soundHint.addEventListener("click", async () => {
+      t = 0;                                   // start from the top so the build-up leads into the chorus
+      playing = true;
+      await setSound(true);
+      setPlaying(true);
+    });
+  }
+
   function setPlaying(p) {
     playing = p;
     iconPlay.hidden = p;
     iconPause.hidden = !p;
     playBtn.setAttribute("aria-label", p ? "一時停止" : "再生");
     last = performance.now();
+    if (hasAudio) syncAudio();
   }
   playBtn.addEventListener("click", () => setPlaying(!playing));
-  seek.addEventListener("input", () => { scrubbing = true; t = parseFloat(seek.value); });
-  seek.addEventListener("change", () => { scrubbing = false; last = performance.now(); });
+  seek.addEventListener("input", () => { scrubbing = true; t = parseFloat(seek.value); stopSource(); });
+  seek.addEventListener("change", () => { scrubbing = false; last = performance.now(); if (hasAudio) syncAudio(); });
   document.addEventListener("keydown", e => {
     if (e.code === "Space" && e.target.tagName !== "BUTTON" && e.target.tagName !== "INPUT") {
       e.preventDefault();
@@ -662,7 +757,9 @@
     if (exporting) return;               // export/export.mjs drives frames itself
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
-    if (playing && !scrubbing) t = (t + dt) % DUR;
+    if (src && playing && !scrubbing) t = (actx.currentTime - audioT0) % DUR;   // follow the audio clock
+    else if (playing && !scrubbing) t = (t + dt) % DUR;
+    if (t < 0) t += DUR;
     pointer.x += (pointer.tx - pointer.x) * 0.04;
     pointer.y += (pointer.ty - pointer.y) * 0.04;
 
@@ -701,6 +798,7 @@
     ready: start(),
     renderAt(time) {
       exporting = true;
+      stopSource();
       if (canvas.width !== W) { canvas.width = W; canvas.height = H; }
       scale = 1;
       pointer.x = pointer.y = pointer.tx = pointer.ty = 0;

@@ -1,2 +1,5 @@
 node_modules/
 dist/
+# the song is unreleased and this repo is public: keep audio and the audio-embedded build out of git
+audio/*.mp3
+polaris-drop.html
